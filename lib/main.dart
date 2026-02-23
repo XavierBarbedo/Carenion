@@ -1945,10 +1945,6 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
   Future<void> _addOrEditMed([Map<String, dynamic>? med]) async {
     final nomeController = TextEditingController(text: med?['nome']);
     final doseController = TextEditingController(text: med?['quantidade']); 
-    String? selectedRegularidade = med?['regularidade'] ?? 'Todos os dias';
-    final stockController = TextEditingController(text: med?['stock_atual']?.toString() ?? '30');
-    final obsController = TextEditingController(text: med?['observacoes']);
-
     final List<String> regularidadeOptions = [
       '1 vez ao dia',
       '2 vezes ao dia',
@@ -1957,6 +1953,15 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
       '5 vezes ao dia',
       '6 vezes ao dia',
     ];
+    
+    String? selectedRegularidade = med?['regularidade'];
+    // Se o valor da DB não estiver nas novas opções (ex: "Todos os dias"), default para null
+    if (!regularidadeOptions.contains(selectedRegularidade)) {
+      selectedRegularidade = null;
+    }
+
+    final stockController = TextEditingController(text: med?['stock_atual']?.toString() ?? '30');
+    final obsController = TextEditingController(text: med?['observacoes']);
 
     await showDialog(
       context: context,
