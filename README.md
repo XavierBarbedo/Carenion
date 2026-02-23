@@ -1,20 +1,23 @@
-<<<<<<< HEAD
-# carenion
-
-A new Flutter project.
-
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-=======
 # Carenion
->>>>>>> 35d3fd39594b76ce56c253b74ea3a5862bd37640
+
+Gestão de Cuidados de Saúde e Bem-estar para Seniores.
+
+## Funcionalidades
+- Registo de Idosos e Famílias.
+- Gestão de Medicação com controlo de stock.
+- Planeamento semanal de tomas.
+- Pesquisa de medicamentos via API externa.
+
+## Atribuições e APIs
+- **Supabase**: Backend para persistência de dados.
+- **Pesquisa Híbrida de Medicamentos**: Combina uma base de dados local de marcas portuguesas (ex: Ben-u-ron, Brufen) com a API científica do NIH para resultados abrangentes.
+- **NIH RxTerms API**: Utilizada para pesquisa de nomes clínicos e dosagens internacionais.
+- **Dataset Local**: Lista curada das medicações mais comuns em Portugal para uma experiência de utilizador otimizada.
+
+---
+
+## Como Começar
+
+1. Clone o repositório.
+2. Configure as credenciais do Supabase no `main.dart`.
+3. Execute `flutter run`.
