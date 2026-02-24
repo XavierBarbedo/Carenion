@@ -1585,7 +1585,7 @@ class _MedicamentosPageState extends State<MedicamentosPage> with SingleTickerPr
       final todayStr = now.toIso8601String().substring(0, 10);
       final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
       
-      final medsRes = await _supabase.from('medicacoes').select('*, idosos(nome)');
+      final medsRes = await _supabase.from('medicacoes').select('*, idosos(*, familias(*))');
       
       if (medsRes is List && medsRes.isNotEmpty) {
         final tomasRes = await _supabase.from('medicacao_tomas')
@@ -1610,6 +1610,9 @@ class _MedicamentosPageState extends State<MedicamentosPage> with SingleTickerPr
             
             projection.add({
               ...med,
+              'familia_nome': med['idosos']?['familias']?['nome'] ?? 'Sem Família',
+              'familia_id': med['idosos']?['familias']?['id'],
+              'idoso_nome': med['idosos']?['nome'] ?? 'Desconhecido',
               'data_toma': dayStr,
               'is_today': isToday,
               'is_future': isFuture,
@@ -1643,32 +1646,90 @@ class _MedicamentosPageState extends State<MedicamentosPage> with SingleTickerPr
       default: return '';
     }
   }
-
   Future<void> _marcarTomado(dynamic med) async {
     try {
-      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final now = DateTime.now().toIso8601String().substring(0, 10);
+      final medDate = med['data_toma'] ?? now;
       
-      // 1. Logar a toma
-      await _supabase.from('medicacao_tomas').insert({
-        'medicacao_id': med['id'],
-        'data': today,
-        'quantidade_tomada': 1,
-      });
+      if (medDate != now) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Apenas pode alterar o estado do dia atual!', style: TextStyle(color: Colors.white)),
+            backgroundColor: Colors.orange,
+          ));
+        }
+        return;
+      }
 
-      // 2. Atualizar stock
-      if (med['stock_atual'] != null && med['stock_atual'] > 0) {
+      final isUndo = med['tomada'] == true;
+
+      // Calcular quantidade diária baseada na regularidade e quantidade (dose)
+      // Regularidade: "X vezes ao dia"
+      int frequency = 1;
+      if (med['regularidade'] != null) {
+        final regMatch = RegExp(r'(\d+)').firstMatch(med['regularidade'].toString());
+        if (regMatch != null) {
+          frequency = int.tryParse(regMatch.group(1)!) ?? 1;
+        }
+      }
+
+      // Quantidade/Dose: "Y comprimidos"
+      int dose = 1;
+      if (med['quantidade'] != null) {
+        final doseMatch = RegExp(r'(\d+)').firstMatch(med['quantidade'].toString());
+        if (doseMatch != null) {
+          dose = int.tryParse(doseMatch.group(1)!) ?? 1;
+        }
+      }
+      
+      final int amountToAdjust = frequency * dose;
+
+      if (isUndo) {
+        // 1. Remover a toma (Voltar atrás)
+        await _supabase.from('medicacao_tomas')
+            .delete()
+            .eq('medicacao_id', med['id'])
+            .eq('data', now);
+
+        // 2. Recuperar stock
         await _supabase.from('medicacoes').update({
-          'stock_atual': med['stock_atual'] - 1
+          'stock_atual': (med['stock_atual'] ?? 0) + amountToAdjust
         }).eq('id', med['id']);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Toma revertida e stock recuperado!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.blue));
+        }
+      } else {
+        // 1. Verificar se existe stock suficiente
+        final currentStock = med['stock_atual'] ?? 0;
+        if (currentStock < amountToAdjust) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock insuficiente para marcar como tomado!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+          }
+          return;
+        }
+
+        // 2. Logar a toma
+        await _supabase.from('medicacao_tomas').insert({
+          'medicacao_id': med['id'],
+          'data': now,
+          'quantidade_tomada': amountToAdjust,
+        });
+
+        // 3. Atualizar stock (retirar equivalentes aos comprimidos por dia)
+        await _supabase.from('medicacoes').update({
+          'stock_atual': currentStock - amountToAdjust
+        }).eq('id', med['id']);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Medicação marcada como tomada!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+        }
       }
 
       _fetchData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Medicação marcada como tomada!', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
-      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao marcar como tomada: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao processar: $e')));
       }
     }
   }
@@ -1708,74 +1769,108 @@ class _MedicamentosPageState extends State<MedicamentosPage> with SingleTickerPr
       return const Center(child: Text('Nenhuma medicação agendada para esta semana.', style: TextStyle(color: Colors.grey)));
     }
 
-    // Agrupar por data
-    Map<String, List<dynamic>> groupedByDate = {};
+    // 1. Agrupar por Família
+    Map<String, List<dynamic>> groupedByFamily = {};
     for (var item in _tomasSemana) {
-      final key = '${item['day_label']} (${item['date_label']})';
-      groupedByDate.putIfAbsent(key, () => []).add(item);
+      final famName = item['familia_nome'] ?? 'Sem Família';
+      groupedByFamily.putIfAbsent(famName, () => []).add(item);
     }
 
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: groupedByDate.keys.map((dateKey) {
-        final items = groupedByDate[dateKey]!;
-        final isToday = items.any((i) => i['is_today']);
+      children: groupedByFamily.keys.map((famName) {
+        final familyItems = groupedByFamily[famName]!;
         
+        // 2. Agrupar itens da família por data
+        Map<String, List<dynamic>> groupedByDate = {};
+        for (var item in familyItems) {
+          final key = '${item['day_label']} (${item['date_label']})';
+          groupedByDate.putIfAbsent(key, () => []).add(item);
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                dateKey,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: isToday ? Colors.amber[800] : Colors.blueGrey,
-                ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 8, top: 16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.amber.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.family_restroom, color: Colors.amber),
+                  const SizedBox(width: 12),
+                  Text(
+                    famName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.amber),
+                  ),
+                ],
               ),
             ),
-            ...items.map((item) {
-              final idosoNome = item['idosos']?['nome'] ?? 'Desconhecido';
-              final isFuture = item['is_future'];
+            ...groupedByDate.keys.map((dateKey) {
+              final items = groupedByDate[dateKey]!;
+              final isToday = items.any((i) => i['is_today']);
               
-              return Card(
-                elevation: 1,
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                color: isFuture ? Colors.grey[50] : null,
-                child: ListTile(
-                  leading: Icon(
-                    Icons.medical_services,
-                    color: item['tomada'] ? Colors.green : (isFuture ? Colors.grey : Colors.amber),
-                  ),
-                  title: Text(item['nome'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Para: $idosoNome\n${item['regularidade']}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.settings, color: Colors.blueGrey, size: 20),
-                        onPressed: () async {
-                          final idosoRes = await _supabase.from('idosos').select().eq('id', item['idoso_id']).single();
-                          if (mounted) {
-                            await Navigator.push(context, MaterialPageRoute(builder: (context) => ManageMedicacoesPage(idosoData: idosoRes)));
-                            _fetchData();
-                          }
-                        },
-                      ),
-                      if (item['tomada'])
-                        const Icon(Icons.check_circle, color: Colors.green, size: 30)
-                      else if (isFuture)
-                        const Icon(Icons.schedule, color: Colors.grey, size: 30) // Ícone de relógio para futuro
-                      else
-                        IconButton(
-                          icon: const Icon(Icons.circle_outlined, color: Colors.grey, size: 30),
-                          onPressed: () => _marcarTomado(item),
-                        ),
-                    ],
+              return ExpansionTile(
+                initiallyExpanded: isToday,
+                title: Text(
+                  dateKey,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: isToday ? Colors.amber[800] : Colors.blueGrey,
                   ),
                 ),
+                children: items.map((item) {
+                  final idosoNome = item['idoso_nome'] ?? 'Desconhecido';
+                  final isFuture = item['is_future'];
+                  
+                  return Card(
+                    elevation: 1,
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: isFuture ? Colors.grey[50] : null,
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.medical_services,
+                        color: item['tomada'] ? Colors.green : (isFuture ? Colors.grey : Colors.amber),
+                      ),
+                      title: Text(item['nome'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('Para: $idosoNome\n${item['regularidade']}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.settings, color: Colors.blueGrey, size: 20),
+                            onPressed: () async {
+                              final idosoRes = await _supabase.from('idosos').select().eq('id', item['idoso_id']).single();
+                              if (mounted) {
+                                await Navigator.push(context, MaterialPageRoute(builder: (context) => ManageMedicacoesPage(idosoData: idosoRes)));
+                                _fetchData();
+                              }
+                            },
+                          ),
+                          if (item['tomada'])
+                            IconButton(
+                              icon: const Icon(Icons.check_circle, color: Colors.green, size: 30),
+                              onPressed: () => _marcarTomado(item),
+                            )
+                          else if (isFuture)
+                            const Icon(Icons.schedule, color: Colors.grey, size: 30) // Ícone de relógio para futuro
+                          else
+                            IconButton(
+                              icon: const Icon(Icons.circle_outlined, color: Colors.grey, size: 30),
+                              onPressed: () => _marcarTomado(item),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
               );
             }).toList(),
             const SizedBox(height: 16),
