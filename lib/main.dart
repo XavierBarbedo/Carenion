@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 const String MED_API_URL = 'https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=';
 
@@ -28,9 +29,11 @@ String hashPassword(String password) {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await dotenv.load(fileName: ".env");
+
   await Supabase.initialize(
-    url: 'https://ywystlcfdcyhudjgxgfe.supabase.co',
-    anonKey: 'sb_publishable_HutjQsw7m-WR8n_DEJsHnw_LwFjZUPa',
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
   runApp(const CarenionApp());
