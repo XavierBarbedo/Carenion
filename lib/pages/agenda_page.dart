@@ -144,6 +144,18 @@ class _AgendaPageState extends State<AgendaPage> {
               });
             },
             eventLoader: _getEventsForDay,
+            locale: settingsService.calendarLanguage == 'pt' ? 'pt_PT' : 'en_US',
+            availableCalendarFormats: settingsService.calendarLanguage == 'pt'
+                ? const {
+                    CalendarFormat.month: 'Mês',
+                    CalendarFormat.twoWeeks: '2 Semanas',
+                    CalendarFormat.week: 'Semana',
+                  }
+                : const {
+                    CalendarFormat.month: 'Month',
+                    CalendarFormat.twoWeeks: '2 Weeks',
+                    CalendarFormat.week: 'Week',
+                  },
             calendarStyle: const CalendarStyle(
               todayDecoration: BoxDecoration(
                 color: Colors.amberAccent,

@@ -5,11 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/auth_pages.dart';
 import 'pages/home_page.dart';
 import 'services/settings_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 late final SettingsService settingsService;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('pt_PT', null);
+  await initializeDateFormatting('en_US', null);
 
   await dotenv.load(fileName: ".env");
 

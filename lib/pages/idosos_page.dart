@@ -467,23 +467,25 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
                 _nifController,
                 'NIF',
                 Icons.badge_outlined,
-                hintText: 'Ex: 123456789',
+                hintText: 'Ex: 212 345 678',
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 _telefoneController,
                 'Telefone',
                 Icons.phone_outlined,
-                hintText: 'Ex: 912345678',
+                hintText: 'Ex: 912 345 678',
               ),
               const SizedBox(height: 16),
-              _buildTextField(_moradaController, 'Morada', Icons.home_outlined),
+              _buildTextField(_moradaController, 'Morada', Icons.home_outlined,
+                  hintText: 'Ex: Rua das Flores, n.º 10, Lisboa'),
               const SizedBox(height: 16),
               _buildTextField(
                 _patologiasController,
                 'Patologias/Doenças',
                 Icons.medical_information_outlined,
                 maxLines: 2,
+                hintText: 'Ex: Diabetes, Hipertensão, Alzheimer',
               ),
               const SizedBox(height: 16),
               _buildTextField(
@@ -491,6 +493,8 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
                 'Observações',
                 Icons.note_add_outlined,
                 maxLines: 3,
+                isRequired: false,
+                hintText: 'Ex: Alérgico a penicilina, prefere ler à tarde',
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -533,6 +537,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
     IconData icon, {
     int maxLines = 1,
     String? hintText,
+    bool isRequired = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -543,8 +548,10 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      validator: (value) =>
-          value == null || value.isEmpty ? 'Campo obrigatório' : null,
+      validator: (value) {
+        if (!isRequired) return null;
+        return (value == null || value.isEmpty) ? 'Campo obrigatório' : null;
+      },
     );
   }
 }
@@ -967,23 +974,25 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
                 _nifController,
                 'NIF',
                 Icons.badge_outlined,
-                hintText: 'Ex: 123456789',
+                hintText: 'Ex: 212 345 678',
               ),
               const SizedBox(height: 16),
               _buildTextField(
                 _telefoneController,
                 'Telefone',
                 Icons.phone_outlined,
-                hintText: 'Ex: 912345678',
+                hintText: 'Ex: 912 345 678',
               ),
               const SizedBox(height: 16),
-              _buildTextField(_moradaController, 'Morada', Icons.home_outlined),
+              _buildTextField(_moradaController, 'Morada', Icons.home_outlined,
+                  hintText: 'Ex: Rua das Flores, n.º 10, Lisboa'),
               const SizedBox(height: 16),
               _buildTextField(
                 _patologiasController,
                 'Patologias/Doenças',
                 Icons.medical_information_outlined,
                 maxLines: 2,
+                hintText: 'Ex: Diabetes, Hipertensão, Alzheimer',
               ),
               const SizedBox(height: 16),
               _buildTextField(
@@ -991,6 +1000,8 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
                 'Observações',
                 Icons.note_add_outlined,
                 maxLines: 3,
+                isRequired: false,
+                hintText: 'Ex: Alérgico a penicilina, prefere ler à tarde',
               ),
               const SizedBox(height: 32),
               SizedBox(
@@ -1033,6 +1044,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
     IconData icon, {
     int maxLines = 1,
     String? hintText,
+    bool isRequired = true,
   }) {
     return TextFormField(
       controller: controller,
@@ -1043,8 +1055,10 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      validator: (value) =>
-          value == null || value.isEmpty ? 'Campo obrigatório' : null,
+      validator: (value) {
+        if (!isRequired) return null;
+        return (value == null || value.isEmpty) ? 'Campo obrigatório' : null;
+      },
     );
   }
 }

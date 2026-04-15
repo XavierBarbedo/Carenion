@@ -43,6 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
             children: [
               _buildSectionHeader('Geral', Icons.tune),
               _buildThemeDropdown(),
+              _buildLanguageDropdown(),
               const Divider(height: 32),
               _buildSectionHeader('Agenda & Eventos', Icons.event_note),
               _buildNotificationDropdown(),
@@ -141,6 +142,33 @@ class _SettingsPageState extends State<SettingsPage> {
           DropdownMenuItem(
             value: 1440,
             child: Text('1 Dia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLanguageDropdown() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Idioma do Calendário',
+          style: TextStyle(fontWeight: FontWeight.w500)),
+      subtitle: const Text('Selecione o idioma da agenda de cuidados'),
+      trailing: DropdownButton<String>(
+        value: widget.settingsService.calendarLanguage,
+        onChanged: (String? newLang) {
+          if (newLang != null) {
+            widget.settingsService.updateCalendarLanguage(newLang);
+          }
+        },
+        items: const [
+          DropdownMenuItem(
+            value: 'pt',
+            child: Text('Português'),
+          ),
+          DropdownMenuItem(
+            value: 'en',
+            child: Text('English'),
           ),
         ],
       ),
