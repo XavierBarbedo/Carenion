@@ -170,6 +170,21 @@ class _AgendaPageState extends State<AgendaPage> {
                 shape: BoxShape.circle,
               ),
             ),
+            calendarBuilders: CalendarBuilders(
+              dowBuilder: (context, day) {
+                if (settingsService.calendarLanguage == 'pt') {
+                  final ptDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+                  final text = ptDays[day.weekday - 1];
+                  return Center(
+                    child: Text(
+                      text,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }
+                return null;
+              },
+            ),
             headerStyle: const HeaderStyle(
               formatButtonVisible: true,
               titleCentered: true,
