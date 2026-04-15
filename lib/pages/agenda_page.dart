@@ -455,6 +455,10 @@ class _AgendaPageState extends State<AgendaPage> {
         return Colors.teal;
       case 'refeição':
         return Colors.orange;
+      case 'tratamento':
+        return Colors.green;
+      case 'medicação':
+        return Colors.pink;
       default:
         return Colors.amber;
     }
@@ -516,6 +520,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
   final _tituloController = TextEditingController();
   final _descController = TextEditingController();
   final _localController = TextEditingController();
+  final _outroController = TextEditingController();
 
   String _selectedTipo = 'Consulta';
   int? _selectedFamiliaId;
@@ -533,7 +538,14 @@ class _AddEventoPageState extends State<AddEventoPage> {
       _tituloController.text = widget.event!['titulo'] ?? '';
       _descController.text = widget.event!['descricao'] ?? '';
       _localController.text = widget.event!['localizacao'] ?? '';
-      _selectedTipo = widget.event!['tipo'] ?? 'Outro';
+      final eventTipo = widget.event!['tipo'] ?? 'Outro';
+      final predefinedTypes = ['Consulta', 'Exame', 'Higiene', 'Refeição', 'Tratamento', 'Medicação'];
+      if (predefinedTypes.contains(eventTipo)) {
+        _selectedTipo = eventTipo;
+      } else {
+        _selectedTipo = 'Outro';
+        _outroController.text = eventTipo;
+      }
       if (widget.event!['data_inicio'] != null) {
         final dt = DateTime.parse(widget.event!['data_inicio']);
         _selectedTime = TimeOfDay(hour: dt.hour, minute: dt.minute);
@@ -665,12 +677,23 @@ class _AddEventoPageState extends State<AddEventoPage> {
                   prefixIcon: Icon(Icons.category),
                 ),
                 value: _selectedTipo,
-                items: ['Consulta', 'Exame', 'Higiene', 'Refeição', 'Outro']
+                items: ['Consulta', 'Exame', 'Higiene', 'Refeição', 'Tratamento', 'Medicação', 'Outro']
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                     .toList(),
                 onChanged: (val) =>
                     setState(() => _selectedTipo = val ?? 'Outro'),
               ),
+              if (_selectedTipo == 'Outro') ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _outroController,
+                  decoration: const InputDecoration(
+                    labelText: 'Qual? (Especifique o tipo)',
+                    prefixIcon: Icon(Icons.edit_note),
+                  ),
+                  validator: (v) => v == null || v.trim().isEmpty ? 'Por favor, especifique o tipo' : null,
+                ),
+              ],
               const SizedBox(height: 16),
 
               ListTile(
@@ -771,7 +794,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
       'idoso_id': _selectedIdosoId,
       'titulo': _tituloController.text,
       'descricao': _descController.text,
-      'tipo': _selectedTipo,
+      'tipo': _selectedTipo == 'Outro' ? _outroController.text.trim() : _selectedTipo,
       'data_inicio': startDateTime.toIso8601String(),
       'localizacao': _localController.text,
     };
