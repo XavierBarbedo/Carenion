@@ -82,6 +82,37 @@ class NotificationService {
     debugPrint('Notification $id scheduled for $tzScheduledDate');
   }
 
+  Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'carenion_stock_channel',
+      'Alertas de Stock',
+      channelDescription: 'Notificações de stock baixo de medicação',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails();
+
+    const NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notificationsPlugin.show(
+      id,
+      title,
+      body,
+      details,
+      payload: id.toString(),
+    );
+    
+    debugPrint('Notification $id shown immediately');
+  }
+
   Future<void> cancelNotification(int id) async {
     await _notificationsPlugin.cancel(id);
     debugPrint('Notification $id canceled');

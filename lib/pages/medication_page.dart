@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../utils.dart';
 import '../main.dart';
+import '../services/notification_service.dart';
 
 class MedicamentosPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -294,10 +295,19 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         });
 
         // 3. Atualizar stock (retirar equivalentes aos comprimidos por dia)
+        final int newStock = currentStock - amountToAdjust;
         await _supabase
             .from('medicacoes')
-            .update({'stock_atual': currentStock - amountToAdjust})
+            .update({'stock_atual': newStock})
             .eq('id', med['id']);
+
+        if (newStock < settingsService.lowStockThreshold) {
+          notificationService.showNotification(
+            id: med['id'] + 9000000, 
+            title: 'Stock Baixo: ${med['nome']}',
+            body: 'Resta apenas $newStock unidades para o idoso ${med['idoso_nome']}.',
+          );
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -969,6 +979,15 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                         .from('medicacoes')
                         .update(data)
                         .eq('id', med['id']);
+                  }
+
+                  final int currentStock = data['stock_atual'] as int;
+                  if (currentStock < settingsService.lowStockThreshold) {
+                    notificationService.showNotification(
+                      id: (med?['id'] ?? 9999) + 9000000,
+                      title: 'Stock Baixo: ${data['nome']}',
+                      body: 'Resta apenas $currentStock unidades para o idoso ${widget.idosoData['nome']}.',
+                    );
                   }
                   if (mounted) Navigator.pop(context);
                   _fetchMedicacoes();
