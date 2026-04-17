@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart';
+import '../services/notification_service.dart';
 
 class AgendaPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -487,6 +488,7 @@ class _AgendaPageState extends State<AgendaPage> {
     if (confirm == true) {
       try {
         await _supabase.from('eventos').delete().eq('id', event['id']);
+        await notificationService.cancelNotification(event['id']);
         _fetchEvents();
       } catch (e) {
         if (mounted)
@@ -802,9 +804,11 @@ class _AddEventoPageState extends State<AddEventoPage> {
 
     if (widget.event != null) {
         await _supabase.from('eventos').update(eventData).eq('id', widget.event!['id']);
+        _scheduleEventNotification(widget.event!['id'], startDateTime);
     } else {
         eventData['criado_em'] = DateTime.now().toIso8601String();
-        await _supabase.from('eventos').insert(eventData);
+        final response = await _supabase.from('eventos').insert(eventData).select().single();
+        _scheduleEventNotification(response['id'], startDateTime);
     }
 
     if (mounted) {
@@ -826,6 +830,18 @@ class _AddEventoPageState extends State<AddEventoPage> {
     if (mounted) setState(() => _isLoading = false);
   }
 }
+
+  void _scheduleEventNotification(int eventId, DateTime startDateTime) {
+    final int minutesBefore = settingsService.eventNotificationTime;
+    final DateTime scheduledTime = startDateTime.subtract(Duration(minutes: minutesBefore));
+
+    notificationService.scheduleNotification(
+      id: eventId,
+      title: 'Lembrete: ${_tituloController.text}',
+      body: 'Evento agendado para as ${DateFormat(\'HH:mm\').format(startDateTime)}',
+      scheduledDate: scheduledTime,
+    );
+  }
 }
 
 class MapPickerPage extends StatefulWidget {

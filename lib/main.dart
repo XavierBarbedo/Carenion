@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/auth_pages.dart';
 import 'pages/home_page.dart';
 import 'services/settings_service.dart';
+import 'services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 late final SettingsService settingsService;
@@ -23,6 +24,7 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   settingsService = SettingsService(prefs);
+  await notificationService.init();
 
   runApp(const CarenionApp());
 }
