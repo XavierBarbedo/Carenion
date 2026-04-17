@@ -95,6 +95,7 @@ class _AgendaPageState extends State<AgendaPage> {
           ...event,
           'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
           'familia_nome': familiaNome ?? 'Sem Família',
+          'familia_id': familiaId,
         });
       }
 
@@ -567,8 +568,8 @@ class _AddEventoPageState extends State<AddEventoPage> {
       setState(() {
         _familias = famRes;
       });
-      if (widget.event != null && widget.event!['idosos'] != null && widget.event!['idosos']['familia_id'] != null) {
-        _selectedFamiliaId = widget.event!['idosos']['familia_id'];
+      if (widget.event != null && widget.event!['familia_id'] != null) {
+        _selectedFamiliaId = widget.event!['familia_id'];
         _fetchIdosos(_selectedFamiliaId!);
       }
     } catch (e) {
