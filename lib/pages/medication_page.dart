@@ -59,6 +59,30 @@ class _MedicamentosPageState extends State<MedicamentosPage>
 
         final idosos = List<Map<String, dynamic>>.from(idososRes);
 
+        // 2.1 Buscar stock centralizado da tabela stock_familia
+        final stockFamiliaRes = await _supabase
+            .from('stock_familia')
+            .select()
+            .inFilter('familia_id', familiaIds);
+        final Map<String, int> centralStockMap = {};
+        for (var s in stockFamiliaRes) {
+          final key = '${s['familia_id']}_${s['nome_medicamento']}';
+          centralStockMap[key] = s['stock_atual'] ?? 0;
+        }
+
+        // Enriquecer medicações de cada idoso com stock centralizado
+        for (var idoso in idosos) {
+          final meds = idoso['medicacoes'] as List? ?? [];
+          final familiaId = idoso['familia_id'];
+          idoso['medicacoes'] = meds.map((m) {
+            final stockKey = '${familiaId}_${m['nome'].toString().toLowerCase()}';
+            return {
+              ...m,
+              'stock_atual': centralStockMap[stockKey] ?? 0,
+            };
+          }).toList();
+        }
+
         setState(() {
           _stockFamilia = familias.map((f) {
             f['idosos'] = idosos
@@ -118,16 +142,31 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           .select()
           .inFilter('idoso_id', idososMap.keys.toList());
 
+      // 3.1 Buscar stock centralizado da tabela stock_familia
+      final stockRes = await _supabase
+          .from('stock_familia')
+          .select()
+          .inFilter('familia_id', familiasMap.keys.toList());
+      // Mapa: 'familiaId_nomeMinusculo' -> stock_atual
+      final Map<String, int> stockMap = {};
+      for (var s in stockRes) {
+        final key = '${s['familia_id']}_${s['nome_medicamento']}';
+        stockMap[key] = s['stock_atual'] ?? 0;
+      }
+
       if (medsRes is List && medsRes.isNotEmpty) {
-        final regularMeds = medsRes.where((m) => m['tipo'] != 'SOS').toList();
-        final sosMeds = medsRes.where((m) => m['tipo'] == 'SOS').map((m) {
+        final regularMeds = medsRes.where((m) => m['tipo'] != 'sos').toList();
+        final sosMeds = medsRes.where((m) => m['tipo'] == 'sos').map((m) {
           final idoso = idososMap[m['idoso_id']];
           final familiaId = idoso?['familia_id'];
           final familiaNome = familiaId != null ? familiasMap[familiaId] : 'Sem Família';
+          final stockKey = '${familiaId}_${m['nome'].toString().toLowerCase()}';
           return {
             ...m,
             'familia_nome': familiaNome ?? 'Sem Família',
             'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
+            'stock_atual': stockMap[stockKey] ?? 0,
+            'familia_id': familiaId,
           };
         }).toList();
 
@@ -169,12 +208,14 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             final idoso = idososMap[med['idoso_id']];
             final familiaId = idoso?['familia_id'];
             final familiaNome = familiaId != null ? familiasMap[familiaId] : 'Sem Família';
+            final stockKey = '${familiaId}_${med['nome'].toString().toLowerCase()}';
 
             projection.add({
               ...med,
               'familia_nome': familiaNome ?? 'Sem Família',
               'familia_id': familiaId,
               'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
+              'stock_atual': stockMap[stockKey] ?? 0,
               'data_toma': dayStr,
               'is_today': isToday,
               'is_future': isFuture,
@@ -275,11 +316,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             .eq('medicacao_id', med['id'])
             .eq('data', now);
 
-        // 2. Recuperar stock
+        // 2. Recuperar stock na tabela centralizada
+        final int recoveredStock = (med['stock_atual'] ?? 0) + amountToAdjust;
+        final String medNomeLower = med['nome'].toString().toLowerCase();
+        final int familiaId = med['familia_id'];
         await _supabase
-            .from('medicacoes')
-            .update({'stock_atual': (med['stock_atual'] ?? 0) + amountToAdjust})
-            .eq('id', med['id']);
+            .from('stock_familia')
+            .update({'stock_atual': recoveredStock})
+            .eq('familia_id', familiaId)
+            .eq('nome_medicamento', medNomeLower);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -317,12 +362,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           'quantidade_tomada': amountToAdjust,
         });
 
-        // 3. Atualizar stock (retirar equivalentes aos comprimidos por dia)
+        // 3. Atualizar stock na tabela centralizada
         final int newStock = currentStock - amountToAdjust;
+        final String medNomeLower = med['nome'].toString().toLowerCase();
+        final int familiaId = med['familia_id'];
         await _supabase
-            .from('medicacoes')
+            .from('stock_familia')
             .update({'stock_atual': newStock})
-            .eq('id', med['id']);
+            .eq('familia_id', familiaId)
+            .eq('nome_medicamento', medNomeLower);
 
         if (newStock < settingsService.lowStockThreshold) {
           notificationService.showNotification(
@@ -422,10 +470,13 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       });
 
       final int newStock = currentStock - amountToAdjust;
+      final String medNomeLower = med['nome'].toString().toLowerCase();
+      final int familiaId = med['familia_id'];
       await _supabase
-          .from('medicacoes')
+          .from('stock_familia')
           .update({'stock_atual': newStock})
-          .eq('id', med['id']);
+          .eq('familia_id', familiaId)
+          .eq('nome_medicamento', medNomeLower);
 
       if (newStock < settingsService.lowStockThreshold) {
         notificationService.showNotification(
@@ -550,8 +601,13 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                     item['nome'],
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(
-                    'Para: ${item['idoso_nome']}\n${item['instrucoes_sos'] ?? 'Sem instruções'}',
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Para: ${item['idoso_nome']}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      const SizedBox(height: 4),
+                      Text('Instruções: ${item['instrucoes_sos'] ?? 'Sem instruções'}'),
+                    ],
                   ),
                   trailing: ElevatedButton(
                     style: ElevatedButton.styleFrom(
@@ -666,8 +722,14 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                           item['nome'],
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text(
-                          'Para: $idosoNome\n${item['regularidade']}',
+                        isThreeLine: true,
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Para: $idosoNome', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            Text('Regularidade: ${item['regularidade']}'),
+                            Text('Dose: ${item['quantidade']}'),
+                          ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -990,7 +1052,28 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
           .from('medicacoes')
           .select()
           .eq('idoso_id', widget.idosoData['id']);
-      setState(() => _medicacoes = res);
+
+      // Buscar stock centralizado da família
+      final int familiaId = widget.idosoData['familia_id'];
+      final stockRes = await _supabase
+          .from('stock_familia')
+          .select()
+          .eq('familia_id', familiaId);
+      final Map<String, int> stockMap = {};
+      for (var s in stockRes) {
+        stockMap[s['nome_medicamento']] = s['stock_atual'] ?? 0;
+      }
+
+      // Enriquecer cada medicamento com o stock centralizado
+      final enriched = res.map((m) {
+        final stockKey = m['nome'].toString().toLowerCase();
+        return {
+          ...m,
+          'stock_atual': stockMap[stockKey] ?? 0,
+        };
+      }).toList();
+
+      setState(() => _medicacoes = enriched);
     } catch (e) {
       debugPrint('Erro ao carregar medicações: $e');
     } finally {
@@ -1032,8 +1115,8 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
   Future<void> _addOrEditMed([Map<String, dynamic>? med]) async {
     final nomeController = TextEditingController(text: med?['nome']);
     final doseController = TextEditingController(text: med?['quantidade']);
-    final List<String> tipoOptions = ['Regular', 'SOS'];
-    String _selectedTipo = med?['tipo'] ?? 'Regular';
+    final List<String> tipoOptions = ['normal', 'sos'];
+    String _selectedTipo = med?['tipo'] ?? 'normal';
 
     final List<String> regularidadeOptions = [
       '1 vez ao dia',
@@ -1124,7 +1207,10 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                     prefixIcon: Icon(Icons.category),
                   ),
                   items: tipoOptions
-                      .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+                      .map((opt) => DropdownMenuItem(
+                            value: opt,
+                            child: Text(opt == 'normal' ? 'Regular' : 'SOS'),
+                          ))
                       .toList(),
                   onChanged: (val) => setDialogState(() => _selectedTipo = val!),
                 ),
@@ -1136,7 +1222,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                     prefixIcon: Icon(Icons.science),
                   ),
                 ),
-                if (_selectedTipo == 'Regular') ...[
+                if (_selectedTipo == 'normal') ...[
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: selectedRegularidade,
@@ -1153,7 +1239,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                         setDialogState(() => selectedRegularidade = val),
                   ),
                 ],
-                if (_selectedTipo == 'SOS') ...[
+                if (_selectedTipo == 'sos') ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: instrucoesSosController,
@@ -1197,15 +1283,24 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
               ),
               onPressed: () async {
                 if (nomeController.text.isEmpty) return;
+                
+                // Validação de regularidade para tipo normal
+                if (_selectedTipo == 'normal' && selectedRegularidade == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Por favor seleccione a regularidade'))
+                  );
+                  return;
+                }
+
+                final stockValue = int.tryParse(stockController.text) ?? 0;
                 final data = {
                   'idoso_id': widget.idosoData['id'],
                   'nome': nomeController.text,
                   'quantidade': doseController.text,
-                  'regularidade': _selectedTipo == 'Regular' ? selectedRegularidade : 'em caso de emergência',
+                  'regularidade': _selectedTipo == 'normal' ? selectedRegularidade : 'em caso de emergência',
                   'observacoes': obsController.text,
                   'tipo': _selectedTipo,
-                  'instrucoes_sos': _selectedTipo == 'SOS' ? instrucoesSosController.text : null,
-                  'stock_atual': int.tryParse(stockController.text) ?? 0,
+                  'instrucoes_sos': _selectedTipo == 'sos' ? instrucoesSosController.text : null,
                 };
                 try {
                   if (med == null) {
@@ -1217,12 +1312,22 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                         .eq('id', med['id']);
                   }
 
-                  final int currentStock = data['stock_atual'] as int;
-                  if (currentStock < settingsService.lowStockThreshold) {
+                  // Atualizar stock na tabela centralizada (upsert)
+                  final int updatedStock = stockValue;
+                  final String medNomeLower = nomeController.text.toLowerCase();
+                  final int familiaId = widget.idosoData['familia_id'];
+
+                  await _supabase.from('stock_familia').upsert({
+                    'familia_id': familiaId,
+                    'nome_medicamento': medNomeLower,
+                    'stock_atual': updatedStock,
+                  }, onConflict: 'familia_id,nome_medicamento');
+
+                  if (updatedStock < settingsService.lowStockThreshold) {
                     notificationService.showNotification(
                       id: (med?['id'] ?? 9999) + 9000000,
                       title: 'Stock Baixo: ${data['nome']}',
-                      body: 'Resta apenas $currentStock unidades para o idoso ${widget.idosoData['nome']}.',
+                      body: 'Resta apenas $updatedStock unidades.',
                     );
                   }
                   if (mounted) Navigator.pop(context);
@@ -1278,7 +1383,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${med['quantidade']} - ${med['regularidade']}\nStock: ${med['stock_atual']}',
+                          'Para: ${widget.idosoData['nome']}\nRegularidade: ${med['regularidade']}\nDose: ${med['quantidade']}\nStock: ${med['stock_atual']}',
                         ),
                         if (med['observacoes'] != null &&
                             med['observacoes'].toString().isNotEmpty)

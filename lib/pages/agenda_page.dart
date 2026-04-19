@@ -808,7 +808,15 @@ class _AddEventoPageState extends State<AddEventoPage> {
     } else {
         eventData['criado_em'] = DateTime.now().toIso8601String();
         final response = await _supabase.from('eventos').insert(eventData).select().single();
-        _scheduleEventNotification(response['id'], startDateTime);
+        final int eventId = response['id'];
+        _scheduleEventNotification(eventId, startDateTime);
+        
+        // Push notification imediata para novo evento
+        notificationService.showNotification(
+          id: eventId + 7000000,
+          title: 'Novo Evento Agendado',
+          body: '${_tituloController.text} para ${DateFormat('dd/MM HH:mm').format(startDateTime)}',
+        );
     }
 
     if (mounted) {

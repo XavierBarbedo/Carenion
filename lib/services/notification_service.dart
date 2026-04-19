@@ -37,6 +37,12 @@ class NotificationService {
         debugPrint('Notification clicked: ${response.payload}');
       },
     );
+
+    // 6. Request permissions for Android 13+
+    await _notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
   }
 
   Future<void> scheduleNotification({
