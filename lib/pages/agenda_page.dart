@@ -838,7 +838,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
     notificationService.scheduleNotification(
       id: eventId,
       title: 'Lembrete: ${_tituloController.text}',
-      body: 'Evento agendado para as ${DateFormat(\'HH:mm\').format(startDateTime)}',
+      body: 'Evento agendado para as ${DateFormat('HH:mm').format(startDateTime)}',
       scheduledDate: scheduledTime,
     );
   }

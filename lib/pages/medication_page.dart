@@ -20,12 +20,13 @@ class _MedicamentosPageState extends State<MedicamentosPage>
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
   List<dynamic> _tomasSemana = [];
+  List<dynamic> _medsSos = [];
   List<dynamic> _stockFamilia = [];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _fetchData();
   }
 
@@ -118,10 +119,29 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           .inFilter('idoso_id', idososMap.keys.toList());
 
       if (medsRes is List && medsRes.isNotEmpty) {
+        final regularMeds = medsRes.where((m) => m['tipo'] != 'SOS').toList();
+        final sosMeds = medsRes.where((m) => m['tipo'] == 'SOS').map((m) {
+          final idoso = idososMap[m['idoso_id']];
+          final familiaId = idoso?['familia_id'];
+          final familiaNome = familiaId != null ? familiasMap[familiaId] : 'Sem Família';
+          return {
+            ...m,
+            'familia_nome': familiaNome ?? 'Sem Família',
+            'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
+          };
+        }).toList();
+
+        setState(() => _medsSos = sosMeds);
+
+        if (regularMeds.isEmpty) {
+          setState(() => _tomasSemana = []);
+          return;
+        }
+
         final tomasRes = await _supabase
             .from('medicacao_tomas')
             .select()
-            .filter('medicacao_id', 'in', medsRes.map((m) => m['id']).toList())
+            .filter('medicacao_id', 'in', regularMeds.map((m) => m['id']).toList())
             .gte('data', startOfWeek.toIso8601String().substring(0, 10))
             .lte(
               'data',
@@ -140,7 +160,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           final isFuture = dayDate.isAfter(now) && dayStr != todayStr;
           final isToday = dayStr == todayStr;
 
-          for (var med in medsRes) {
+          for (var med in regularMeds) {
             final checkToma = (tomasRes as List).any(
               (t) => t['medicacao_id'] == med['id'] && t['data'] == dayStr,
             );
@@ -169,7 +189,10 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           _tomasSemana = projection;
         });
       } else {
-        setState(() => _tomasSemana = []);
+        setState(() {
+          _tomasSemana = [];
+          _medsSos = [];
+        });
       }
     } catch (e) {
       debugPrint('Erro ao carregar tomas: $e');
@@ -332,6 +355,107 @@ class _MedicamentosPageState extends State<MedicamentosPage>
     }
   }
 
+  Future<void> _marcarTomadoSos(dynamic med) async {
+    final quantityController = TextEditingController(text: '1');
+    final amountToAdjust = await showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Toma de Medicação SOS'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Irá registar a toma de ${med['nome']} para ${med['idoso_nome']}.'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: quantityController,
+              decoration: const InputDecoration(
+                labelText: 'Quantidade Tomada',
+                prefixIcon: Icon(Icons.science),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = int.tryParse(quantityController.text);
+              if (val != null && val > 0) {
+                Navigator.pop(context, val);
+              }
+            },
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+
+    if (amountToAdjust == null || amountToAdjust <= 0) return;
+
+    try {
+      final now = DateTime.now().toIso8601String().substring(0, 10);
+      final currentStock = med['stock_atual'] ?? 0;
+
+      if (currentStock < amountToAdjust) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Stock insuficiente para marcar como tomado!',
+                style: TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      await _supabase.from('medicacao_tomas').insert({
+        'medicacao_id': med['id'],
+        'data': now,
+        'quantidade_tomada': amountToAdjust,
+      });
+
+      final int newStock = currentStock - amountToAdjust;
+      await _supabase
+          .from('medicacoes')
+          .update({'stock_atual': newStock})
+          .eq('id', med['id']);
+
+      if (newStock < settingsService.lowStockThreshold) {
+        notificationService.showNotification(
+          id: med['id'] + 9000000,
+          title: 'Stock Baixo: ${med['nome']}',
+          body: 'Resta apenas $newStock unidades para o idoso ${med['idoso_nome']}.',
+        );
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Toma SOS registada com sucesso!',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      _fetchData();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erro ao processar: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -350,7 +474,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Tomas da Semana'),
+            Tab(text: 'Medicação SOS'),
+            Tab(text: 'Medicação diária'),
             Tab(text: 'Stock por Família'),
           ],
           labelColor: Colors.white,
@@ -360,8 +485,88 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [_buildTomasSemana(), _buildStockFamilia()],
+        children: [_buildMedSOSPannel(), _buildTomasSemana(), _buildStockFamilia()],
       ),
+    );
+  }
+
+  Widget _buildMedSOSPannel() {
+    if (_isLoading)
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.amber),
+      );
+    if (_medsSos.isEmpty) {
+      return const Center(
+        child: Text(
+          'Nenhuma medicação SOS registada.',
+          style: TextStyle(color: Colors.grey),
+        ),
+      );
+    }
+
+    Map<String, List<dynamic>> groupedByFamily = {};
+    for (var item in _medsSos) {
+      final famName = item['familia_nome'] ?? 'Sem Família';
+      groupedByFamily.putIfAbsent(famName, () => []).add(item);
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: groupedByFamily.keys.map((famName) {
+        final items = groupedByFamily[famName]!;
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.amber.withOpacity(0.5)),
+          ),
+          color: Colors.amber.withOpacity(0.05),
+          child: ExpansionTile(
+            initiallyExpanded: true,
+            leading: const Icon(Icons.family_restroom, color: Colors.amber),
+            title: Text(
+              famName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Colors.amber,
+              ),
+            ),
+            children: items.map((item) {
+              return Card(
+                elevation: 1,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                  title: Text(
+                    item['nome'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'Para: ${item['idoso_nome']}\n${item['instrucoes_sos'] ?? 'Sem instruções'}',
+                  ),
+                  trailing: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () => _marcarTomadoSos(item),
+                    child: const Text('Tomar'),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -827,6 +1032,9 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
   Future<void> _addOrEditMed([Map<String, dynamic>? med]) async {
     final nomeController = TextEditingController(text: med?['nome']);
     final doseController = TextEditingController(text: med?['quantidade']);
+    final List<String> tipoOptions = ['Regular', 'SOS'];
+    String _selectedTipo = med?['tipo'] ?? 'Regular';
+
     final List<String> regularidadeOptions = [
       '1 vez ao dia',
       '2 vezes ao dia',
@@ -846,6 +1054,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
       text: med?['stock_atual']?.toString() ?? '30',
     );
     final obsController = TextEditingController(text: med?['observacoes']);
+    final instrucoesSosController = TextEditingController(text: med?['instrucoes_sos']);
 
     await showDialog(
       context: context,
@@ -908,6 +1117,18 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   },
                 ),
                 const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  value: _selectedTipo,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de Medicação',
+                    prefixIcon: Icon(Icons.category),
+                  ),
+                  items: tipoOptions
+                      .map((opt) => DropdownMenuItem(value: opt, child: Text(opt)))
+                      .toList(),
+                  onChanged: (val) => setDialogState(() => _selectedTipo = val!),
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: doseController,
                   decoration: const InputDecoration(
@@ -915,21 +1136,34 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                     prefixIcon: Icon(Icons.science),
                   ),
                 ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  value: selectedRegularidade,
-                  decoration: const InputDecoration(
-                    labelText: 'Regularidade',
-                    prefixIcon: Icon(Icons.repeat),
+                if (_selectedTipo == 'Regular') ...[
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    value: selectedRegularidade,
+                    decoration: const InputDecoration(
+                      labelText: 'Regularidade',
+                      prefixIcon: Icon(Icons.repeat),
+                    ),
+                    items: regularidadeOptions
+                        .map(
+                          (opt) => DropdownMenuItem(value: opt, child: Text(opt)),
+                        )
+                        .toList(),
+                    onChanged: (val) =>
+                        setDialogState(() => selectedRegularidade = val),
                   ),
-                  items: regularidadeOptions
-                      .map(
-                        (opt) => DropdownMenuItem(value: opt, child: Text(opt)),
-                      )
-                      .toList(),
-                  onChanged: (val) =>
-                      setDialogState(() => selectedRegularidade = val),
-                ),
+                ],
+                if (_selectedTipo == 'SOS') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: instrucoesSosController,
+                    decoration: const InputDecoration(
+                      labelText: 'Instruções SOS',
+                      prefixIcon: Icon(Icons.warning),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 TextField(
                   controller: stockController,
@@ -967,8 +1201,10 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   'idoso_id': widget.idosoData['id'],
                   'nome': nomeController.text,
                   'quantidade': doseController.text,
-                  'regularidade': selectedRegularidade,
+                  'regularidade': _selectedTipo == 'Regular' ? selectedRegularidade : 'em caso de emergência',
                   'observacoes': obsController.text,
+                  'tipo': _selectedTipo,
+                  'instrucoes_sos': _selectedTipo == 'SOS' ? instrucoesSosController.text : null,
                   'stock_atual': int.tryParse(stockController.text) ?? 0,
                 };
                 try {

@@ -3,6 +3,7 @@ import 'idosos_page.dart';
 import 'medication_page.dart';
 import 'agenda_page.dart';
 import 'settings_page.dart';
+import 'medicoes_page.dart';
 import '../main.dart';
 
 class HomePage extends StatefulWidget {
@@ -26,6 +27,8 @@ class _HomePageState extends State<HomePage> {
         return MedicamentosPage(userData: widget.userData);
       case 3:
         return AgendaPage(userData: widget.userData);
+      case 4:
+        return MedicoesPage(userData: widget.userData);
       default:
         return IdososPage(userData: widget.userData);
     }
@@ -62,6 +65,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.calendar_month_outlined),
             activeIcon: Icon(Icons.calendar_month),
             label: 'Agenda',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.monitor_heart_outlined),
+            activeIcon: Icon(Icons.monitor_heart),
+            label: 'Medições',
           ),
         ],
         currentIndex: _selectedIndex,

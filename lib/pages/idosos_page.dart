@@ -275,6 +275,12 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
   final _patologiasController = TextEditingController();
   final _obsController = TextEditingController();
 
+  final _snsController = TextEditingController();
+  final _ccController = TextEditingController();
+  final _seguroQualController = TextEditingController();
+  final _seguroNumController = TextEditingController();
+  bool _temSeguroSaude = false;
+
   String _sexo = 'M';
   int? _selectedFamiliaId;
   List<dynamic> _familias = [];
@@ -343,6 +349,10 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
             'data_nascimento': _dataNascController.text,
             'sexo': _sexo,
             'nif': _nifController.text,
+            'sns_numero': _snsController.text,
+            'cc_bi': _ccController.text,
+            'seguro_saude': _temSeguroSaude ? _seguroQualController.text : null,
+            'seguro_numero': _temSeguroSaude ? _seguroNumController.text : null,
             'telefone': _telefoneController.text,
             'morada': _moradaController.text,
             'patologias': _patologiasController.text,
@@ -470,6 +480,47 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
                 isRequired: false,
                 hintText: 'Ex: 123456789',
               ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                _snsController,
+                'Número de Utente do SNS',
+                Icons.medical_services_outlined,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                _ccController,
+                'CC/BI',
+                Icons.credit_card_outlined,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Tem Seguro de Saúde?'),
+                value: _temSeguroSaude,
+                activeColor: Colors.amber,
+                onChanged: (bool value) {
+                  setState(() {
+                    _temSeguroSaude = value;
+                  });
+                },
+              ),
+              if (_temSeguroSaude) ...[
+                const SizedBox(height: 8),
+                _buildTextField(
+                  _seguroQualController,
+                  'Qual o Seguro?',
+                  Icons.health_and_safety_outlined,
+                  isRequired: true,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  _seguroNumController,
+                  'Número do Seguro',
+                  Icons.numbers,
+                  isRequired: false,
+                ),
+              ],
               const SizedBox(height: 16),
               _buildTextField(
                 _telefoneController,
@@ -671,6 +722,12 @@ class IdosoDetailsPage extends StatelessWidget {
                   : 'Outro',
             ),
             _buildDetailItem(Icons.badge_outlined, 'NIF', idosoData['nif']),
+            _buildDetailItem(Icons.medical_services_outlined, 'SNS', idosoData['sns_numero']),
+            _buildDetailItem(Icons.credit_card_outlined, 'CC/BI', idosoData['cc_bi']),
+            if (idosoData['seguro_saude'] != null && idosoData['seguro_saude'].toString().isNotEmpty) ...[
+              _buildDetailItem(Icons.health_and_safety_outlined, 'Seguro de Saúde', idosoData['seguro_saude']),
+              _buildDetailItem(Icons.numbers, 'Nº Seguro', idosoData['seguro_numero']),
+            ],
             _buildDetailItem(
               Icons.phone_outlined,
               'Telefone',
@@ -781,6 +838,11 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
   late TextEditingController _moradaController;
   late TextEditingController _patologiasController;
   late TextEditingController _obsController;
+  late TextEditingController _snsController;
+  late TextEditingController _ccController;
+  late TextEditingController _seguroQualController;
+  late TextEditingController _seguroNumController;
+  late bool _temSeguroSaude;
 
   late String _sexo;
   int? _selectedFamiliaId;
@@ -805,6 +867,12 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
     _obsController = TextEditingController(
       text: widget.idosoData['observacoes'],
     );
+    _snsController = TextEditingController(text: widget.idosoData['sns_numero']);
+    _ccController = TextEditingController(text: widget.idosoData['cc_bi']);
+    _seguroQualController = TextEditingController(text: widget.idosoData['seguro_saude']);
+    _seguroNumController = TextEditingController(text: widget.idosoData['seguro_numero']);
+    _temSeguroSaude = widget.idosoData['seguro_saude'] != null && widget.idosoData['seguro_saude'].toString().isNotEmpty;
+
     _sexo = widget.idosoData['sexo'] ?? 'M';
     _selectedFamiliaId = widget.idosoData['familia_id'];
     _fetchFamilias();
@@ -872,6 +940,10 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
             'data_nascimento': _dataNascController.text,
             'sexo': _sexo,
             'nif': _nifController.text,
+            'sns_numero': _snsController.text,
+            'cc_bi': _ccController.text,
+            'seguro_saude': _temSeguroSaude ? _seguroQualController.text : null,
+            'seguro_numero': _temSeguroSaude ? _seguroNumController.text : null,
             'telefone': _telefoneController.text,
             'morada': _moradaController.text,
             'patologias': _patologiasController.text,
@@ -981,6 +1053,47 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
                 isRequired: false,
                 hintText: 'Ex: 123456789',
               ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                _snsController,
+                'Número de Utente do SNS',
+                Icons.medical_services_outlined,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              _buildTextField(
+                _ccController,
+                'CC/BI',
+                Icons.credit_card_outlined,
+                isRequired: false,
+              ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Tem Seguro de Saúde?'),
+                value: _temSeguroSaude,
+                activeColor: Colors.amber,
+                onChanged: (bool value) {
+                  setState(() {
+                    _temSeguroSaude = value;
+                  });
+                },
+              ),
+              if (_temSeguroSaude) ...[
+                const SizedBox(height: 8),
+                _buildTextField(
+                  _seguroQualController,
+                  'Qual o Seguro?',
+                  Icons.health_and_safety_outlined,
+                  isRequired: true,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  _seguroNumController,
+                  'Número do Seguro',
+                  Icons.numbers,
+                  isRequired: false,
+                ),
+              ],
               const SizedBox(height: 16),
               _buildTextField(
                 _telefoneController,
