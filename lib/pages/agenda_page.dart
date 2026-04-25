@@ -273,9 +273,12 @@ class _AgendaPageState extends State<AgendaPage> {
               title: Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      event['titulo'] ?? 'Sem Título',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        event['titulo'] ?? 'Sem Título',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
                   if (isUpcoming)
@@ -310,8 +313,17 @@ class _AgendaPageState extends State<AgendaPage> {
                     ),
                 ],
               ),
-              subtitle: Text(
-                'Idoso: ${event['idoso_nome']} (${event['familia_nome']})\nTipo: ${event['tipo'] ?? 'Outro'}',
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      'Idoso: ${event['idoso_nome']} (${event['familia_nome']})',
+                    ),
+                  ),
+                  Text('Tipo: ${event['tipo'] ?? 'Outro'}'),
+                ],
               ),
               trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -365,11 +377,14 @@ class _AgendaPageState extends State<AgendaPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  event['titulo'] ?? 'Sem Título',
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(
+                    event['titulo'] ?? 'Sem Título',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -438,7 +453,10 @@ class _AgendaPageState extends State<AgendaPage> {
                   title,
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
-                Text(value, style: const TextStyle(fontSize: 16)),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(value, style: const TextStyle(fontSize: 16)),
+                ),
               ],
             ),
           ),

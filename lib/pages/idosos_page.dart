@@ -156,9 +156,12 @@ class _IdososPageState extends State<IdososPage> {
                         color: Colors.amber,
                       ),
                     ),
-                    title: Text(
-                      familia['nome'] ?? 'Sem nome',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    title: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        familia['nome'] ?? 'Sem nome',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                     subtitle: Text('${listIdosos.length} idosos associados'),
                     children: [
@@ -180,7 +183,10 @@ class _IdososPageState extends State<IdososPage> {
                                 Icons.person,
                                 color: Colors.amber,
                               ),
-                              title: Text(idoso['nome'] ?? 'Sem nome'),
+                              title: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Text(idoso['nome'] ?? 'Sem nome'),
+                              ),
                               trailing: const Icon(
                                 Icons.arrow_forward_ios,
                                 size: 14,
@@ -447,7 +453,10 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
                     .map(
                       (f) => DropdownMenuItem<int>(
                         value: f['id'],
-                        child: Text(f['nome'] ?? 'Sem nome'),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(f['nome'] ?? 'Sem nome'),
+                        ),
                       ),
                     )
                     .toList(),
@@ -674,7 +683,10 @@ class IdosoDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(idosoData['nome'] ?? 'Detalhes'),
+        title: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Text(idosoData['nome'] ?? 'Detalhes'),
+        ),
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
         actions: [
@@ -803,9 +815,12 @@ class IdosoDetailsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  value?.toString() ?? 'Não preenchido',
-                  style: const TextStyle(fontSize: 18),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Text(
+                    value?.toString() ?? 'Não preenchido',
+                    style: const TextStyle(fontSize: 18),
+                  ),
                 ),
               ],
             ),
@@ -1020,7 +1035,10 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
                     .map(
                       (f) => DropdownMenuItem<int>(
                         value: f['id'],
-                        child: Text(f['nome'] ?? 'Sem nome'),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(f['nome'] ?? 'Sem nome'),
+                        ),
                       ),
                     )
                     .toList(),
@@ -1394,7 +1412,10 @@ class _FamiliasPageState extends State<FamiliasPage> {
                       Icons.family_restroom,
                       color: Colors.amber,
                     ),
-                    title: Text(familia['nome'] ?? 'Sem nome'),
+                    title: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(familia['nome'] ?? 'Sem nome'),
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

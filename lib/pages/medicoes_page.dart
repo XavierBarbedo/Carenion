@@ -94,9 +94,12 @@ class _MedicoesPageState extends State<MedicoesPage> {
                       child: ExpansionTile(
                         initiallyExpanded: true,
                         leading: const Icon(Icons.family_restroom, color: Colors.amber),
-                        title: Text(
-                          familia['nome'] ?? 'Sem nome',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(
+                            familia['nome'] ?? 'Sem nome',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         children: idosos.isEmpty
                             ? [
@@ -114,7 +117,10 @@ class _MedicoesPageState extends State<MedicoesPage> {
                             : idosos.map((idoso) {
                                 return ListTile(
                                   leading: const Icon(Icons.person, color: Colors.blueGrey),
-                                  title: Text(idoso['nome']),
+                                  title: SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Text(idoso['nome']),
+                                  ),
                                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                                   onTap: () {
                                     Navigator.push(
@@ -330,7 +336,10 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Medições: ${widget.idosoData['nome']}'),
+        title: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Text('Medições: ${widget.idosoData['nome']}'),
+        ),
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),
@@ -357,7 +366,10 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
                           backgroundColor: Colors.amber.withOpacity(0.2),
                           child: const Icon(Icons.favorite, color: Colors.amber),
                         ),
-                        title: Text('${m['tipo']}: ${m['valor']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text('${m['tipo']}: ${m['valor']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
                         subtitle: Text('$dateStr\n${m['observacoes'] ?? ''}'),
                         trailing: IconButton(
                           icon: const Icon(Icons.delete, color: Colors.redAccent),

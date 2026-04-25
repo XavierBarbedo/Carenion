@@ -577,12 +577,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           child: ExpansionTile(
             initiallyExpanded: true,
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
-            title: Text(
-              famName,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Colors.amber,
+            title: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                famName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.amber,
+                ),
               ),
             ),
             children: items.map((item) {
@@ -597,14 +600,20 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                 ),
                 child: ListTile(
                   leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-                  title: Text(
-                    item['nome'],
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  title: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      item['nome'],
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Para: ${item['idoso_nome']}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text('Para: ${item['idoso_nome']}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      ),
                       const SizedBox(height: 4),
                       Text('Instruções: ${item['instrucoes_sos'] ?? 'Sem instruções'}'),
                     ],
@@ -671,12 +680,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             initiallyExpanded: true,
             shape: const Border(), // Remove the borders on expansion
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
-            title: Text(
-              famName,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Colors.amber,
+            title: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                famName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.amber,
+                ),
               ),
             ),
             iconColor: Colors.amber,
@@ -689,12 +701,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
 
                 return ExpansionTile(
                   initiallyExpanded: isToday,
-                  title: Text(
-                    dateKey,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: isToday ? Colors.amber[800] : Colors.blueGrey,
+                  title: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      dateKey,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: isToday ? Colors.amber[800] : Colors.blueGrey,
+                      ),
                     ),
                   ),
                   children: items.map((item) {
@@ -718,15 +733,21 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                               ? Colors.green
                               : (isFuture ? Colors.grey : Colors.amber),
                         ),
-                        title: Text(
-                          item['nome'],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        title: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(
+                            item['nome'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         isThreeLine: true,
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Para: $idosoNome', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Text('Para: $idosoNome', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            ),
                             Text('Regularidade: ${item['regularidade']}'),
                             Text('Dose: ${item['quantidade']}'),
                           ],
@@ -833,9 +854,12 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           margin: const EdgeInsets.only(bottom: 16),
           child: ExpansionTile(
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
-            title: Text(
-              familia['nome'] ?? 'Sem nome',
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            title: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                familia['nome'] ?? 'Sem nome',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             subtitle: Text('${idosos.length} idosos associados'),
             children: idosos.isEmpty
@@ -854,7 +878,10 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                 : idosos.map((idoso) {
                     final meds = idoso['medicacoes'] as List;
                     return ExpansionTile(
-                      title: Text(idoso['nome'] ?? 'Sem nome'),
+                      title: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Text(idoso['nome'] ?? 'Sem nome'),
+                      ),
                       subtitle: Text('${meds.length} medicamentos'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -893,7 +920,10 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                           : meds
                                 .map(
                                   (m) => ListTile(
-                                    title: Text(m['nome']),
+                                    title: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Text(m['nome']),
+                                    ),
                                     subtitle: Text(
                                       'Regularidade: ${m['regularidade']}',
                                     ),
@@ -1189,7 +1219,10 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                             itemBuilder: (context, index) {
                               final option = options.elementAt(index);
                               return ListTile(
-                                title: Text(option),
+                                title: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Text(option),
+                                ),
                                 onTap: () => onSelected(option),
                               );
                             },
@@ -1351,7 +1384,10 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Medicação: ${widget.idosoData['nome']}'),
+        title: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Text('Medicação: ${widget.idosoData['nome']}'),
+        ),
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),
@@ -1375,15 +1411,21 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                       backgroundColor: Colors.amber,
                       child: Icon(Icons.medication, color: Colors.white),
                     ),
-                    title: Text(
-                      med['nome'],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    title: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Text(
+                        med['nome'],
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Para: ${widget.idosoData['nome']}\nRegularidade: ${med['regularidade']}\nDose: ${med['quantidade']}\nStock: ${med['stock_atual']}',
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Text(
+                            'Para: ${widget.idosoData['nome']}\nRegularidade: ${med['regularidade']}\nDose: ${med['quantidade']}\nStock: ${med['stock_atual']}',
+                          ),
                         ),
                         if (med['observacoes'] != null &&
                             med['observacoes'].toString().isNotEmpty)
