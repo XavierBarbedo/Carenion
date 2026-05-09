@@ -30,10 +30,20 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Definições'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        ),
+        title: const Text(
+          'Definições',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+        ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
       ),
       body: ListenableBuilder(
         listenable: widget.settingsService,

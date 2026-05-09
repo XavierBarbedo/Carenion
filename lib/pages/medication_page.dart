@@ -511,10 +511,20 @@ class _MedicamentosPageState extends State<MedicamentosPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestão de Medicação'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        ),
+        title: const Text(
+          'Gestão de Medicação',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+        ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600) // Amarelo muito escuro para modo noturno
+            : const Color(0xFFFFFBE6), // Creme para modo claro
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -529,9 +539,11 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             Tab(text: 'Medicação SOS'),
             Tab(text: 'Gestão de Stock'),
           ],
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
+          labelColor: Colors.amber,
+          unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
+              ? Colors.amber.withOpacity(0.4)
+              : Colors.amber.withOpacity(0.5),
+          indicatorColor: Colors.amber,
           labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           unselectedLabelStyle: TextStyle(fontSize: 12),
         ),

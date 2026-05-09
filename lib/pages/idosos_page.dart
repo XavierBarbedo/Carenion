@@ -82,10 +82,20 @@ class _IdososPageState extends State<IdososPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Famílias e Idosos'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
+          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        ),
+        title: const Text(
+          'Famílias e Idosos',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+        ),
         centerTitle: true,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6), // Amarelo creme suave para contraste
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber), // Ícones da barra em âmbar
         actions: [
           IconButton(
             icon: const Icon(Icons.family_restroom),
