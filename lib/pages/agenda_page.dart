@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../main.dart';
 import '../services/notification_service.dart';
+import '../utils.dart';
 
 class AgendaPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -512,7 +513,7 @@ class _AgendaPageState extends State<AgendaPage> {
         if (mounted)
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Erro ao eliminar: $e')));
+          ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
       }
     }
   }
@@ -640,9 +641,9 @@ class _AddEventoPageState extends State<AddEventoPage> {
               const SizedBox(height: 20),
 
               DropdownButtonFormField<int>(
-                decoration: const InputDecoration(
-                  labelText: 'Família',
-                  prefixIcon: Icon(Icons.family_restroom),
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Família'),
+                  prefixIcon: const Icon(Icons.family_restroom),
                 ),
                 value: _selectedFamiliaId,
                 items: _familias
@@ -664,9 +665,9 @@ class _AddEventoPageState extends State<AddEventoPage> {
               const SizedBox(height: 16),
 
               DropdownButtonFormField<int>(
-                decoration: const InputDecoration(
-                  labelText: 'Idoso',
-                  prefixIcon: Icon(Icons.person),
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Idoso'),
+                  prefixIcon: const Icon(Icons.person),
                 ),
                 value: _selectedIdosoId,
                 items: _idosos
@@ -684,18 +685,18 @@ class _AddEventoPageState extends State<AddEventoPage> {
 
               TextFormField(
                 controller: _tituloController,
-                decoration: const InputDecoration(
-                  labelText: 'Título do Evento',
-                  prefixIcon: Icon(Icons.title),
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Título do Evento'),
+                  prefixIcon: const Icon(Icons.title),
                 ),
                 validator: (v) => v == null || v.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 16),
 
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Tipo',
-                  prefixIcon: Icon(Icons.category),
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Tipo'),
+                  prefixIcon: const Icon(Icons.category),
                 ),
                 value: _selectedTipo,
                 items: ['Consulta', 'Exame', 'Higiene', 'Refeição', 'Tratamento', 'Medicação', 'Outro']
@@ -708,9 +709,9 @@ class _AddEventoPageState extends State<AddEventoPage> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _outroController,
-                  decoration: const InputDecoration(
-                    labelText: 'Qual? (Especifique o tipo)',
-                    prefixIcon: Icon(Icons.edit_note),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Qual? (Especifique o tipo)'),
+                    prefixIcon: const Icon(Icons.edit_note),
                   ),
                   validator: (v) => v == null || v.trim().isEmpty ? 'Por favor, especifique o tipo' : null,
                 ),
@@ -850,7 +851,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao guardar: $e')));
+      ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
     }
   } finally {
     if (mounted) setState(() => _isLoading = false);

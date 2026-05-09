@@ -30,32 +30,40 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final supabase = Supabase.instance.client;
-      final hashedPassword = hashPassword(_passwordController.text);
 
-      // Consulta à tabela 'users'
+      // Usar Supabase Auth
+      final AuthResponse authRes = await supabase.auth.signInWithPassword(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (authRes.user == null) {
+        throw Exception('Utilizador não autenticado');
+      }
+
+      // Consulta à tabela 'users' para obter dados adicionais
       final response = await supabase
+          .from('users')
+          .select()
+          .eq('id', authRes.user!.id)
+          .maybeSingle();
+
+      // Fallback para contas antigas baseadas apenas no email
+      final userResponse = response ?? await supabase
           .from('users')
           .select()
           .eq('email', _emailController.text)
           .maybeSingle();
 
-      if (response == null) {
+      if (userResponse == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Utilizador não encontrado')),
+          const SnackBar(content: Text('Perfil de utilizador não encontrado')),
         );
         return;
       }
 
-      final user = response;
-
-      bool passwordMatch = user['password'] == hashedPassword;
-
-      if (!passwordMatch) {
-        passwordMatch = user['password'] == _passwordController.text;
-      }
-
-      if (passwordMatch) {
+      final user = userResponse;
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Login efetuado com sucesso!')),
@@ -65,17 +73,11 @@ class _LoginPageState extends State<LoginPage> {
           context,
           MaterialPageRoute(builder: (context) => HomePage(userData: user)),
         );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Password incorreta')));
-      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao conectar: $e')));
+      ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
     } finally {
       if (mounted) {
         setState(() {
@@ -121,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  label: buildRequiredLabel('Email'),
                   prefixIcon: const Icon(Icons.email_outlined),
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -138,7 +140,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 obscureText: _isObscure,
                 decoration: InputDecoration(
-                  labelText: 'Password',
+                  label: buildRequiredLabel('Password'),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
                     icon: Icon(
@@ -260,15 +262,22 @@ class _SignUpPageState extends State<SignUpPage> {
 
     try {
       final supabase = Supabase.instance.client;
-      final hashedPassword = hashPassword(_passwordController.text);
 
-      // Inserir novo utilizador
-      await supabase.from('users').insert({
-        'email': _emailController.text,
-        'password': hashedPassword,
-        'tipo': 'cuidador', // Default como pedido
-        'created_at': DateTime.now().toIso8601String(),
-      });
+      // Criar utilizador no Supabase Auth
+      final AuthResponse authRes = await supabase.auth.signUp(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (authRes.user != null) {
+        // Inserir novo utilizador na tabela users com id = auth.uid()
+        await supabase.from('users').insert({
+          'id': authRes.user!.id,
+          'email': _emailController.text,
+          'tipo': 'cuidador', // Default como pedido
+          'created_at': DateTime.now().toIso8601String(),
+        });
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -279,7 +288,7 @@ class _SignUpPageState extends State<SignUpPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erro ao criar conta: $e')));
+      ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
     } finally {
       if (mounted) {
         setState(() {
@@ -307,7 +316,7 @@ class _SignUpPageState extends State<SignUpPage> {
             TextField(
               controller: _emailController,
               decoration: InputDecoration(
-                labelText: 'Email',
+                label: buildRequiredLabel('Email'),
                 prefixIcon: const Icon(Icons.email_outlined),
                 filled: true,
                 fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
@@ -322,7 +331,7 @@ class _SignUpPageState extends State<SignUpPage> {
               controller: _passwordController,
               obscureText: _isPasswordObscure,
               decoration: InputDecoration(
-                labelText: 'Password',
+                label: buildRequiredLabel('Password'),
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -349,7 +358,7 @@ class _SignUpPageState extends State<SignUpPage> {
               controller: _confirmPasswordController,
               obscureText: _isConfirmPasswordObscure,
               decoration: InputDecoration(
-                labelText: 'Confirmar Password',
+                label: buildRequiredLabel('Confirmar Password'),
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(

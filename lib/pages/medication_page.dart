@@ -398,7 +398,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Erro ao processar: $e')));
+        ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
       }
     }
   }
@@ -416,9 +416,9 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             const SizedBox(height: 16),
             TextField(
               controller: quantityController,
-              decoration: const InputDecoration(
-                labelText: 'Quantidade Tomada',
-                prefixIcon: Icon(Icons.science),
+              decoration: InputDecoration(
+                label: buildRequiredLabel('Quantidade Tomada'),
+                prefixIcon: const Icon(Icons.science),
               ),
               keyboardType: TextInputType.number,
             ),
@@ -502,7 +502,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Erro ao processar: $e')));
+        ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
       }
     }
   }
@@ -1225,10 +1225,10 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                         return TextField(
                           controller: controller,
                           focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'Nome do Medicamento *',
-                            prefixIcon: Icon(Icons.medication),
-                            suffixIcon: Icon(Icons.search, size: 20),
+                          decoration: InputDecoration(
+                            label: buildRequiredLabel('Nome do Medicamento'),
+                            prefixIcon: const Icon(Icons.medication),
+                            suffixIcon: const Icon(Icons.search, size: 20),
                           ),
                         );
                       },
@@ -1264,9 +1264,9 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   value: _selectedTipo,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de Medicação *',
-                    prefixIcon: Icon(Icons.category),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Tipo de Medicação'),
+                    prefixIcon: const Icon(Icons.category),
                   ),
                   items: tipoOptions
                       .map((opt) => DropdownMenuItem(
@@ -1279,18 +1279,18 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: doseController,
-                  decoration: const InputDecoration(
-                    labelText: 'Dose (ex: 1 comprimido) *',
-                    prefixIcon: Icon(Icons.science),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Dose (ex: 1 comprimido)'),
+                    prefixIcon: const Icon(Icons.science),
                   ),
                 ),
                 if (_selectedTipo == 'normal') ...[
                   const SizedBox(height: 8),
                   InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Horários de Toma *',
-                      prefixIcon: Icon(Icons.schedule),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      label: buildRequiredLabel('Horários de Toma'),
+                      prefixIcon: const Icon(Icons.schedule),
+                      border: const OutlineInputBorder(),
                     ),
                     child: Wrap(
                       spacing: 6,
@@ -1320,9 +1320,9 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: instrucoesSosController,
-                    decoration: const InputDecoration(
-                      labelText: 'Instruções SOS *',
-                      prefixIcon: Icon(Icons.warning),
+                    decoration: InputDecoration(
+                      label: buildRequiredLabel('Instruções SOS'),
+                      prefixIcon: const Icon(Icons.warning),
                     ),
                     maxLines: 2,
                   ),
@@ -1330,9 +1330,9 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: stockController,
-                  decoration: const InputDecoration(
-                    labelText: 'Stock Atual *',
-                    prefixIcon: Icon(Icons.inventory),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Stock Atual'),
+                    prefixIcon: const Icon(Icons.inventory),
                   ),
                   keyboardType: TextInputType.number,
                 ),
@@ -1457,7 +1457,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   if (mounted)
                     ScaffoldMessenger.of(
                       context,
-                    ).showSnackBar(SnackBar(content: Text('Erro: $e')));
+                    ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
                 }
               },
               child: const Text('Guardar'),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../utils.dart';
 
 class MedicoesPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -196,9 +197,9 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
               children: [
                 DropdownButtonFormField<String>(
                   value: _selectedTipo,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo de Medição',
-                    prefixIcon: Icon(Icons.monitor_heart),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Tipo de Medição'),
+                    prefixIcon: const Icon(Icons.monitor_heart),
                   ),
                   items: tipos.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                   onChanged: (val) => setDialogState(() => _selectedTipo = val!),
@@ -207,18 +208,18 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: tipoOutraController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qual é a medição?',
-                      prefixIcon: Icon(Icons.edit),
+                    decoration: InputDecoration(
+                      label: buildRequiredLabel('Qual é a medição?'),
+                      prefixIcon: const Icon(Icons.edit),
                     ),
                   ),
                 ],
                 const SizedBox(height: 8),
                 TextField(
                   controller: valorController,
-                  decoration: const InputDecoration(
-                    labelText: 'Valor da Medição',
-                    prefixIcon: Icon(Icons.numbers),
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Valor da Medição'),
+                    prefixIcon: const Icon(Icons.numbers),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -292,7 +293,7 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erro: $e')),
+                      SnackBar(content: Text(translateSupabaseError(e))),
                     );
                   }
                 }
@@ -326,7 +327,7 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
         _fetchMedicoes();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
         }
       }
     }

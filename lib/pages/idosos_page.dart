@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'medication_page.dart';
+import '../utils.dart';
 
 class IdososPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -66,7 +67,7 @@ class _IdososPageState extends State<IdososPage> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Erro ao carregar dados: $e')));
+        ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
       }
     } finally {
       if (mounted) {
@@ -383,15 +384,9 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
     } catch (e) {
       print('DEBUG: Erro detalhado ao registar idoso: $e');
       if (mounted) {
-        String errorMessage = 'Erro ao registar idoso';
-        if (e.toString().contains('fk_user')) {
-          errorMessage =
-              'Erro de permissão ou utilizador inválido (FK violation)';
-        }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$errorMessage: $e'),
+            content: Text(translateSupabaseError(e)),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
@@ -443,7 +438,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
               DropdownButtonFormField<int>(
                 value: _selectedFamiliaId,
                 decoration: InputDecoration(
-                  labelText: 'Família',
+                  label: buildRequiredLabel('Família'),
                   prefixIcon: const Icon(Icons.family_restroom_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -468,7 +463,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
               DropdownButtonFormField<String>(
                 value: _sexo,
                 decoration: InputDecoration(
-                  labelText: 'Sexo',
+                  label: buildRequiredLabel('Sexo'),
                   prefixIcon: const Icon(Icons.wc_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -607,7 +602,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
       controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
-        labelText: label,
+        label: isRequired ? buildRequiredLabel(label) : Text(label),
         hintText: hintText,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -671,7 +666,7 @@ class IdosoDetailsPage extends StatelessWidget {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao eliminar: $e'),
+            content: Text(translateSupabaseError(e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -979,7 +974,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao atualizar: $e'),
+            content: Text(translateSupabaseError(e)),
             backgroundColor: Colors.red,
           ),
         );
@@ -1025,7 +1020,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
               DropdownButtonFormField<int>(
                 value: _selectedFamiliaId,
                 decoration: InputDecoration(
-                  labelText: 'Família',
+                  label: buildRequiredLabel('Família'),
                   prefixIcon: const Icon(Icons.family_restroom_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1050,7 +1045,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
               DropdownButtonFormField<String>(
                 value: _sexo,
                 decoration: InputDecoration(
-                  labelText: 'Sexo',
+                  label: buildRequiredLabel('Sexo'),
                   prefixIcon: const Icon(Icons.wc_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -1189,7 +1184,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
       controller: controller,
       maxLines: maxLines,
       decoration: InputDecoration(
-        labelText: label,
+        label: isRequired ? buildRequiredLabel(label) : Text(label),
         hintText: hintText,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1235,7 +1230,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar famílias: $e')),
+          SnackBar(content: Text(translateSupabaseError(e))),
         );
       }
     } finally {
@@ -1253,7 +1248,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
         title: const Text('Nova Família'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Nome da Família'),
+          decoration: InputDecoration(label: buildRequiredLabel('Nome da Família')),
           autofocus: true,
         ),
         actions: [
@@ -1267,7 +1262,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
                 try {
                   await _supabase.from('familias').insert({
                     'nome': controller.text,
-                    'user_id': widget.userData['id'],
+                    'user_id': _supabase.auth.currentUser!.id,
                   });
                   _hasChanges = true;
                   if (mounted) Navigator.pop(context);
@@ -1275,7 +1270,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erro ao adicionar: $e')),
+                      SnackBar(content: Text(translateSupabaseError(e))),
                     );
                   }
                 }
@@ -1296,7 +1291,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
         title: const Text('Editar Família'),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(labelText: 'Nome da Família'),
+          decoration: InputDecoration(label: buildRequiredLabel('Nome da Família')),
           autofocus: true,
         ),
         actions: [
@@ -1318,7 +1313,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Erro ao editar: $e')),
+                      SnackBar(content: Text(translateSupabaseError(e))),
                     );
                   }
                 }
@@ -1379,7 +1374,7 @@ class _FamiliasPageState extends State<FamiliasPage> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Erro ao eliminar: $e')));
+          ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
         }
       }
     }
