@@ -15,20 +15,20 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
 
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return SettingsPage(settingsService: settingsService);
-      case 1:
         return IdososPage(userData: widget.userData);
-      case 2:
+      case 1:
         return MedicamentosPage(userData: widget.userData);
-      case 3:
+      case 2:
         return AgendaPage(userData: widget.userData);
-      case 4:
+      case 3:
         return MedicoesPage(userData: widget.userData);
+      case 4:
+        return SettingsPage(settingsService: settingsService);
       default:
         return IdososPage(userData: widget.userData);
     }
@@ -46,11 +46,6 @@ class _HomePageState extends State<HomePage> {
       body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Definições',
-          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people_outline),
             activeIcon: Icon(Icons.people),
@@ -70,6 +65,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.monitor_heart_outlined),
             activeIcon: Icon(Icons.monitor_heart),
             label: 'Medições',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Definições',
           ),
         ],
         currentIndex: _selectedIndex,
