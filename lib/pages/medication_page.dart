@@ -513,15 +513,21 @@ class _MedicamentosPageState extends State<MedicamentosPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Gestão de Medicação',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
         ),
-        title: const Text(
-          'Gestão de Medicação',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
-        ),
-        centerTitle: true,
+        centerTitle: false,
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF2D2600) // Amarelo muito escuro para modo noturno
             : const Color(0xFFFFFBE6), // Creme para modo claro
@@ -1486,12 +1492,31 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Text('Medicação: ${widget.idosoData['nome']}'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Text(
+                  'Medicação: ${widget.idosoData['nome']}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                ),
+              ),
+            ),
+          ],
         ),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        centerTitle: false,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))

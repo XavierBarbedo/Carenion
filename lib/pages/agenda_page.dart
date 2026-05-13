@@ -119,15 +119,21 @@ class _AgendaPageState extends State<AgendaPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Agenda de Cuidados',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
         ),
-        title: const Text(
-          'Agenda de Cuidados',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
-        ),
-        centerTitle: true,
+        centerTitle: false,
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF2D2600)
             : const Color(0xFFFFFBE6),
@@ -630,9 +636,26 @@ class _AddEventoPageState extends State<AddEventoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.event != null ? 'Editar Evento' : 'Novo Evento'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            Text(
+              widget.event != null ? 'Editar Evento' : 'Novo Evento',
+              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -1026,9 +1049,26 @@ class _MapPickerPageState extends State<MapPickerPage> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Selecionar no Mapa'),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Selecionar no Mapa',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
+        ),
+        centerTitle: false,
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
       ),
       body: Stack(
         children: [

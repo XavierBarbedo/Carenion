@@ -94,15 +94,21 @@ class _MedicoesPageState extends State<MedicoesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Medições de Saúde',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
         ),
-        title: const Text(
-          'Medições de Saúde',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
-        ),
-        centerTitle: true,
+        centerTitle: false,
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF2D2600)
             : const Color(0xFFFFFBE6),
@@ -124,27 +130,32 @@ class _MedicoesPageState extends State<MedicoesPage> {
                   itemBuilder: (context, index) {
                     final familia = _familias[index];
                     final idosos = familia['idosos'] as List;
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      child: ExpansionTile(
-                        initiallyExpanded: true,
-                        leading: const Icon(Icons.family_restroom, color: Colors.amber),
-                        title: Text(
-                          familia['nome'] ?? 'Sem nome',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                        ),
-                        children: idosos.isEmpty
-                            ? [
-                                const Padding(
-                                  padding: EdgeInsets.all(16),
-                                  child: Text(
-                                    'Sem idosos/as registados/as.',
-                                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                    return Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        elevation: 2,
+                        shadowColor: Colors.black12,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: ExpansionTile(
+                          initiallyExpanded: true,
+                          leading: const Icon(Icons.family_restroom, color: Colors.amber),
+                          title: Text(
+                            familia['nome'] ?? 'Sem nome',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                          children: idosos.isEmpty
+                              ? [
+                                  const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Text(
+                                      'Sem idosos/as registados/as.',
+                                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                    ),
                                   ),
-                                ),
-                              ]
-                            : idosos.map((idoso) => _buildIdosoExpansionTile(idoso)).toList(),
+                                ]
+                              : idosos.map((idoso) => _buildIdosoExpansionTile(idoso)).toList(),
+                        ),
                       ),
                     );
                   },
@@ -163,6 +174,17 @@ class _MedicoesPageState extends State<MedicoesPage> {
     }
   }
 
+  IconData _getCategoryIcon(String tipo) {
+    switch (tipo.toLowerCase()) {
+      case 'tensão arterial':
+        return Icons.monitor_heart;
+      case 'diabetes':
+        return Icons.water_drop;
+      default:
+        return Icons.analytics_outlined;
+    }
+  }
+
   Widget _buildIdosoExpansionTile(dynamic idoso) {
     final medicoes = _medicoesPorIdoso[idoso['id']] ?? [];
     
@@ -176,71 +198,93 @@ class _MedicoesPageState extends State<MedicoesPage> {
       medicoesAgrupadas[tipo]!.add(m);
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      child: Card(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? Colors.grey[900] 
-            : Colors.grey[50],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 0,
-        child: ExpansionTile(
-          leading: const Icon(Icons.person, color: Colors.blueGrey),
-          title: Text(
-            idoso['nome'],
-            style: const TextStyle(fontWeight: FontWeight.w600),
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        child: Card(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? Colors.grey[900] 
+              : Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          trailing: IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: Colors.amber),
-            onPressed: () => _addMedicao(idoso),
-            tooltip: 'Adicionar Medição',
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.blueGrey.withOpacity(0.1),
+              child: const Icon(Icons.person, color: Colors.blueGrey, size: 20),
+            ),
+            title: Text(
+              idoso['nome'],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.add_circle, color: Colors.amber, size: 28),
+              onPressed: () => _addMedicao(idoso),
+              tooltip: 'Adicionar Medição',
+            ),
+            children: [
+              if (medicoesAgrupadas.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Nenhuma medição registada para este/a ${formatIdoso(idoso['sexo'], capitalize: false)}.',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                )
+              else
+                ...medicoesAgrupadas.entries.map((entry) {
+                  return _buildCategoryExpansionTile(entry.key, entry.value);
+                }).toList(),
+              const SizedBox(height: 8),
+            ],
           ),
-          children: [
-            if (medicoesAgrupadas.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Nenhuma medição registada para este/a ${formatIdoso(idoso['sexo'], capitalize: false)}.',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic),
-                ),
-              )
-            else
-              ...medicoesAgrupadas.entries.map((entry) {
-                return _buildCategoryExpansionTile(entry.key, entry.value);
-              }).toList(),
-            const SizedBox(height: 8),
-          ],
         ),
       ),
     );
   }
 
   Widget _buildCategoryExpansionTile(String categoria, List<dynamic> medicoes) {
-    return ExpansionTile(
-      dense: true,
-      title: Text(
-        categoria,
-        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
-      ),
-      children: medicoes.map((m) {
-        final date = DateTime.tryParse(m['data_medicao'] ?? '');
-        final dateStr = date != null ? DateFormat('dd/MM HH:mm').format(date) : 'Data inválida';
-        final unidade = _getUnidade(categoria);
+    final icon = _getCategoryIcon(categoria);
+    return Theme(
+      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+      child: ExpansionTile(
+        dense: true,
+        leading: Icon(icon, size: 20, color: Colors.amber),
+        title: Text(
+          categoria,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 14),
+        ),
+        children: medicoes.map((m) {
+          final date = DateTime.tryParse(m['data_medicao'] ?? '');
+          final dateStr = date != null ? DateFormat('dd/MM HH:mm').format(date) : 'Data inválida';
+          final unidade = _getUnidade(categoria);
 
-        return ListTile(
-          dense: true,
-          leading: const Icon(Icons.monitor_heart, size: 18, color: Colors.amber),
-          title: Text(
-            unidade.isNotEmpty ? '${m['valor']} $unidade' : m['valor'],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text('$dateStr${m['observacoes'] != null && m['observacoes'].toString().isNotEmpty ? ' - ${m['observacoes']}' : ''}'),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
-            onPressed: () => _confirmDeleteMedicao(m['id']),
-          ),
-        );
-      }).toList(),
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.amber.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: ListTile(
+              dense: true,
+              title: Text(
+                unidade.isNotEmpty ? '${m['valor']} $unidade' : m['valor'],
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              ),
+              subtitle: Text(
+                '$dateStr${m['observacoes'] != null && m['observacoes'].toString().isNotEmpty ? ' - ${m['observacoes']}' : ''}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                onPressed: () => _confirmDeleteMedicao(m['id']),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 

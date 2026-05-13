@@ -32,15 +32,21 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 8.0, bottom: 8.0),
-          child: Image.asset('images/carenion_Icon-removebg-preview.png'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'images/carenion_Icon-removebg-preview.png',
+              height: 35,
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'Definições',
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            ),
+          ],
         ),
-        title: const Text(
-          'Definições',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
-        ),
-        centerTitle: true,
+        centerTitle: false,
         backgroundColor: Theme.of(context).brightness == Brightness.dark
             ? const Color(0xFF2D2600)
             : const Color(0xFFFFFBE6),

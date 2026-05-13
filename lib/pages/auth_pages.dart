@@ -303,9 +303,15 @@ class _SignUpPageState extends State<SignUpPage> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Criar conta"),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
+        title: const Text(
+          "Criar conta",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+        ),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF2D2600)
+            : const Color(0xFFFFFBE6),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.amber),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
