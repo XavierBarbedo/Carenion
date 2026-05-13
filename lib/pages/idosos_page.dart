@@ -338,6 +338,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
       helpText: 'Selecione a data de nascimento',
       cancelText: 'Cancelar',
       confirmText: 'Confirmar',
+      locale: const Locale('pt', 'PT'),
     );
     if (picked != null) {
       setState(() {

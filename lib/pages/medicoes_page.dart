@@ -243,6 +243,7 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
                       initialDate: selectedDate,
                       firstDate: DateTime(2000),
                       lastDate: DateTime.now(),
+                      locale: const Locale('pt', 'PT'),
                     );
                     if (d != null) {
                       final t = await showTimePicker(
