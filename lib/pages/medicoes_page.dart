@@ -15,6 +15,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
   final _supabase = Supabase.instance.client;
   bool _isLoading = true;
   List<dynamic> _familias = [];
+  Map<int, List<dynamic>> _medicoesPorIdoso = {};
 
   @override
   void initState() {
@@ -47,6 +48,26 @@ class _MedicoesPageState extends State<MedicoesPage> {
             .order('nome');
 
         final idosos = List<Map<String, dynamic>>.from(idososRes);
+        final idosoIds = idosos.map((i) => i['id']).toList();
+
+        // 3. Busca todas as medições destes idosos
+        if (idosoIds.isNotEmpty) {
+          final medicoesRes = await _supabase
+              .from('medicoes')
+              .select()
+              .inFilter('idoso_id', idosoIds)
+              .order('data_medicao', ascending: false);
+          
+          final medicoes = medicoesRes as List;
+          _medicoesPorIdoso = {};
+          for (var m in medicoes) {
+            final idosoId = m['idoso_id'];
+            if (_medicoesPorIdoso[idosoId] == null) {
+              _medicoesPorIdoso[idosoId] = [];
+            }
+            _medicoesPorIdoso[idosoId]!.add(m);
+          }
+        }
 
         setState(() {
           _familias = familias.map((f) {
@@ -57,10 +78,13 @@ class _MedicoesPageState extends State<MedicoesPage> {
           }).toList();
         });
       } else {
-        setState(() => _familias = []);
+        setState(() {
+          _familias = [];
+          _medicoesPorIdoso = {};
+        });
       }
     } catch (e) {
-      debugPrint('Erro ao carregar idosos: $e');
+      debugPrint('Erro ao carregar dados: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -102,15 +126,13 @@ class _MedicoesPageState extends State<MedicoesPage> {
                     final idosos = familia['idosos'] as List;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                       child: ExpansionTile(
                         initiallyExpanded: true,
                         leading: const Icon(Icons.family_restroom, color: Colors.amber),
-                        title: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(
-                            familia['nome'] ?? 'Sem nome',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                        title: Text(
+                          familia['nome'] ?? 'Sem nome',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                         ),
                         children: idosos.isEmpty
                             ? [
@@ -118,76 +140,112 @@ class _MedicoesPageState extends State<MedicoesPage> {
                                   padding: EdgeInsets.all(16),
                                   child: Text(
                                     'Sem idosos registados.',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontStyle: FontStyle.italic,
-                                    ),
+                                    style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                                   ),
                                 ),
                               ]
-                            : idosos.map((idoso) {
-                                return ListTile(
-                                  leading: const Icon(Icons.person, color: Colors.blueGrey),
-                                  title: SingleChildScrollView(
-                                    scrollDirection: Axis.horizontal,
-                                    child: Text(idoso['nome']),
-                                  ),
-                                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ManageMedicoesPage(idosoData: idoso),
-                                      ),
-                                    );
-                                  },
-                                );
-                              }).toList(),
+                            : idosos.map((idoso) => _buildIdosoExpansionTile(idoso)).toList(),
                       ),
                     );
                   },
                 ),
     );
   }
-}
 
-class ManageMedicoesPage extends StatefulWidget {
-  final Map<String, dynamic> idosoData;
-  const ManageMedicoesPage({super.key, required this.idosoData});
-
-  @override
-  State<ManageMedicoesPage> createState() => _ManageMedicoesPageState();
-}
-
-class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
-  final _supabase = Supabase.instance.client;
-  bool _isLoading = true;
-  List<dynamic> _medicoes = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchMedicoes();
-  }
-
-  Future<void> _fetchMedicoes() async {
-    setState(() => _isLoading = true);
-    try {
-      final res = await _supabase
-          .from('medicoes')
-          .select()
-          .eq('idoso_id', widget.idosoData['id'])
-          .order('data_medicao', ascending: false);
-      setState(() => _medicoes = res);
-    } catch (e) {
-      debugPrint('Erro ao carregar medições: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+  String _getUnidade(String tipo) {
+    switch (tipo.toLowerCase()) {
+      case 'tensão arterial':
+        return 'mmHg';
+      case 'diabetes':
+        return 'mg/dL';
+      default:
+        return '';
     }
   }
 
-  Future<void> _addMedicao() async {
-    String _selectedTipo = 'Tensão Arterial';
+  Widget _buildIdosoExpansionTile(dynamic idoso) {
+    final medicoes = _medicoesPorIdoso[idoso['id']] ?? [];
+    
+    // Agrupar por tipo
+    Map<String, List<dynamic>> medicoesAgrupadas = {};
+    for (var m in medicoes) {
+      final tipo = m['tipo'] ?? 'Outra';
+      if (medicoesAgrupadas[tipo] == null) {
+        medicoesAgrupadas[tipo] = [];
+      }
+      medicoesAgrupadas[tipo]!.add(m);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: Card(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.grey[900] 
+            : Colors.grey[50],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        child: ExpansionTile(
+          leading: const Icon(Icons.person, color: Colors.blueGrey),
+          title: Text(
+            idoso['nome'],
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: Colors.amber),
+            onPressed: () => _addMedicao(idoso),
+            tooltip: 'Adicionar Medição',
+          ),
+          children: [
+            if (medicoesAgrupadas.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'Nenhuma medição registada para este idoso.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic),
+                ),
+              )
+            else
+              ...medicoesAgrupadas.entries.map((entry) {
+                return _buildCategoryExpansionTile(entry.key, entry.value);
+              }).toList(),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryExpansionTile(String categoria, List<dynamic> medicoes) {
+    return ExpansionTile(
+      dense: true,
+      title: Text(
+        categoria,
+        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey),
+      ),
+      children: medicoes.map((m) {
+        final date = DateTime.tryParse(m['data_medicao'] ?? '');
+        final dateStr = date != null ? DateFormat('dd/MM HH:mm').format(date) : 'Data inválida';
+        final unidade = _getUnidade(categoria);
+
+        return ListTile(
+          dense: true,
+          leading: const Icon(Icons.monitor_heart, size: 18, color: Colors.amber),
+          title: Text(
+            unidade.isNotEmpty ? '${m['valor']} $unidade' : m['valor'],
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text('$dateStr${m['observacoes'] != null && m['observacoes'].toString().isNotEmpty ? ' - ${m['observacoes']}' : ''}'),
+          trailing: IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+            onPressed: () => _confirmDeleteMedicao(m['id']),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Future<void> _addMedicao(dynamic idoso) async {
+    String selectedTipo = 'Tensão Arterial';
     final List<String> tipos = ['Tensão Arterial', 'Diabetes', 'Outra'];
     
     final tipoOutraController = TextEditingController();
@@ -200,21 +258,21 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nova Medição'),
+          title: Text('Nova Medição para ${idoso['nome']}'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: _selectedTipo,
+                  value: selectedTipo,
                   decoration: InputDecoration(
                     label: buildRequiredLabel('Tipo de Medição'),
                     prefixIcon: const Icon(Icons.monitor_heart),
                   ),
                   items: tipos.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (val) => setDialogState(() => _selectedTipo = val!),
+                  onChanged: (val) => setDialogState(() => selectedTipo = val!),
                 ),
-                if (_selectedTipo == 'Outra') ...[
+                if (selectedTipo == 'Outra') ...[
                   const SizedBox(height: 8),
                   TextField(
                     controller: tipoOutraController,
@@ -227,9 +285,11 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: valorController,
+                  keyboardType: TextInputType.text,
                   decoration: InputDecoration(
                     label: buildRequiredLabel('Valor da Medição'),
                     prefixIcon: const Icon(Icons.numbers),
+                    suffixText: _getUnidade(selectedTipo),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -282,7 +342,7 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
               ),
               onPressed: () async {
                 final valor = valorController.text.trim();
-                final tipoFinal = _selectedTipo == 'Outra' ? tipoOutraController.text.trim() : _selectedTipo;
+                final tipoFinal = selectedTipo == 'Outra' ? tipoOutraController.text.trim() : selectedTipo;
 
                 if (valor.isEmpty || tipoFinal.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -293,14 +353,14 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
 
                 try {
                   await _supabase.from('medicoes').insert({
-                    'idoso_id': widget.idosoData['id'],
+                    'idoso_id': idoso['id'],
                     'tipo': tipoFinal,
                     'valor': valor,
                     'data_medicao': selectedDate.toIso8601String(),
                     'observacoes': obsController.text,
                   });
                   if (mounted) Navigator.pop(context);
-                  _fetchMedicoes();
+                  _fetchData(); // Recarregar tudo
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -317,7 +377,7 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
     );
   }
 
-  Future<void> _deleteMedicao(dynamic id) async {
+  Future<void> _confirmDeleteMedicao(dynamic id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -335,67 +395,12 @@ class _ManageMedicoesPageState extends State<ManageMedicoesPage> {
     if (confirm == true) {
       try {
         await _supabase.from('medicoes').delete().eq('id', id);
-        _fetchMedicoes();
+        _fetchData(); // Recarregar tudo
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
         }
       }
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Text('Medições: ${widget.idosoData['nome']}'),
-        ),
-        backgroundColor: Colors.amber,
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.amber))
-          : _medicoes.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Nenhuma medição registada.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _medicoes.length,
-                  itemBuilder: (context, index) {
-                    final m = _medicoes[index];
-                    final date = DateTime.tryParse(m['data_medicao'] ?? '');
-                    final dateStr = date != null ? DateFormat('dd/MM/yyyy HH:mm').format(date) : 'Data inválida';
-
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.amber.withOpacity(0.2),
-                          child: const Icon(Icons.favorite, color: Colors.amber),
-                        ),
-                        title: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text('${m['tipo']}: ${m['valor']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        subtitle: Text('$dateStr\n${m['observacoes'] ?? ''}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.redAccent),
-                          onPressed: () => _deleteMedicao(m['id']),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addMedicao,
-        backgroundColor: Colors.amber,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
   }
 }
