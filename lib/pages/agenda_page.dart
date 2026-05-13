@@ -888,13 +888,93 @@ class MapPickerPage extends StatefulWidget {
   State<MapPickerPage> createState() => _MapPickerPageState();
 }
 
-class _MapPickerPageState extends State<MapPickerPage> {
+class _MapPickerPageState extends State<MapPickerPage> with SingleTickerProviderStateMixin {
   final MapController _mapController = MapController();
   final TextEditingController _searchController = TextEditingController();
   LatLng _center = const LatLng(38.7223, -9.1393); // Lisbon center default
+  String _currentAddress = 'A carregar localização...';
   bool _ready = false;
   bool _isSearching = false;
+  bool _isReverseGeocoding = false;
+  bool _isMoving = false;
   List<dynamic> _searchResults = [];
+
+  late AnimationController _pinAnimationController;
+  late Animation<double> _pinJumpAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pinAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _pinJumpAnimation = Tween<double>(begin: 0, end: -20).animate(
+      CurvedAnimation(parent: _pinAnimationController, curve: Curves.easeOut),
+    );
+    _reverseGeocode(_center);
+  }
+
+  @override
+  void dispose() {
+    _pinAnimationController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reverseGeocode(LatLng point) async {
+    setState(() {
+      _isReverseGeocoding = true;
+    });
+
+    try {
+      final uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?lat=${point.latitude}&lon=${point.longitude}&format=json&addressdetails=1',
+      );
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'carenion/1.0',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final address = data['address'];
+        if (address != null) {
+          final road = address['road'] ?? address['pedestrian'] ?? address['suburb'] ?? '';
+          final city = address['city'] ?? address['town'] ?? address['village'] ?? address['municipality'] ?? '';
+          
+          if (road.isNotEmpty && city.isNotEmpty) {
+            setState(() {
+              _currentAddress = '$road, $city';
+            });
+          } else if (data['display_name'] != null) {
+            // Fallback to display_name but try to keep it short
+            final parts = data['display_name'].toString().split(',');
+            if (parts.length > 2) {
+              setState(() {
+                _currentAddress = '${parts[0].trim()}, ${parts[1].trim()}';
+              });
+            } else {
+              setState(() {
+                _currentAddress = data['display_name'];
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Reverse geocoding error: $e');
+      setState(() {
+        _currentAddress = 'Localização desconhecida';
+      });
+    } finally {
+      setState(() {
+        _isReverseGeocoding = false;
+      });
+    }
+  }
 
   Future<void> _searchAddress(String query) async {
     if (query.trim().isEmpty) return;
@@ -939,6 +1019,7 @@ class _MapPickerPageState extends State<MapPickerPage> {
       FocusScope.of(context).unfocus(); // Close keyboard
     });
     _mapController.move(_center, 15.0);
+    _reverseGeocode(_center);
   }
 
   @override
@@ -963,62 +1044,151 @@ class _MapPickerPageState extends State<MapPickerPage> {
                 if (hasGesture) {
                   setState(() {
                     _center = camera.center;
+                    if (!_isMoving) {
+                      _isMoving = true;
+                      _pinAnimationController.forward();
+                    }
                   });
+                }
+              },
+              onMapEvent: (event) {
+                if (event is MapEventMoveEnd) {
+                  setState(() {
+                    _isMoving = false;
+                    _pinAnimationController.reverse();
+                  });
+                  _reverseGeocode(_center);
                 }
               },
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                urlTemplate: Theme.of(context).brightness == Brightness.dark
+                    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.example.carenion',
               ),
             ],
           ),
-          // Crosshair in the center of the screen
-          const Center(
-            child: Icon(Icons.location_on, size: 48, color: Colors.red),
+          // Animated Custom Pin in the center
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 35), // Align tip of pin with center
+              child: AnimatedBuilder(
+                animation: _pinJumpAnimation,
+                builder: (context, child) {
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Shadow
+                      Transform.translate(
+                        offset: const Offset(0, 35),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          width: _isMoving ? 12 : 24,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.black26,
+                            borderRadius: BorderRadius.all(Radius.elliptical(_isMoving ? 6 : 12, 2)),
+                          ),
+                        ),
+                      ),
+                      // Pin Icon
+                      Transform.translate(
+                        offset: Offset(0, _pinJumpAnimation.value),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.person, size: 24, color: Colors.white),
+                            ),
+                            Container(
+                              width: 3,
+                              height: 15,
+                              decoration: BoxDecoration(
+                                color: Colors.amber,
+                                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(3)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
 
           // Search Bar Overlay
           Positioned(
-            top: 16,
+            top: MediaQuery.of(context).padding.top + 16,
             left: 16,
             right: 16,
             child: Column(
               children: [
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
                     child: Row(
                       children: [
+                        const SizedBox(width: 16),
+                        Icon(Icons.search, color: Colors.grey[600]),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
                             controller: _searchController,
                             decoration: const InputDecoration(
-                              hintText: 'Pesquisar hospital, clínica, rua...',
+                              hintText: 'Pesquisar local...',
                               border: InputBorder.none,
+                              hintStyle: TextStyle(fontSize: 16),
                             ),
                             onSubmitted: _searchAddress,
                           ),
                         ),
+                        if (_searchController.text.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () {
+                              setState(() {
+                                _searchController.clear();
+                                _searchResults = [];
+                              });
+                            },
+                          ),
                         if (_isSearching)
                           const Padding(
-                            padding: EdgeInsets.all(8.0),
+                            padding: EdgeInsets.all(12.0),
                             child: SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
                             ),
-                          )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.search),
-                            onPressed: () =>
-                                _searchAddress(_searchController.text),
                           ),
                       ],
                     ),
@@ -1063,20 +1233,49 @@ class _MapPickerPageState extends State<MapPickerPage> {
             ),
           ),
 
-          // Coordinates overlay at the bottom
+          // Address overlay at the bottom
           if (_ready && _searchResults.isEmpty)
             Positioned(
-              bottom: 80,
+              bottom: 100,
               left: 16,
               right: 16,
               child: Card(
-                color: Colors.white.withOpacity(0.9),
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                color: Theme.of(context).cardColor.withOpacity(0.95),
                 child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Text(
-                    'Arraste o mapa para focar no local desejado.\nCoord: ${_center.latitude.toStringAsFixed(4)}, ${_center.longitude.toStringAsFixed(4)}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.location_on, color: Colors.amber, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _isReverseGeocoding 
+                                  ? 'A identificar local...' 
+                                  : _currentAddress,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Arraste o mapa para o local exato',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1084,23 +1283,52 @@ class _MapPickerPageState extends State<MapPickerPage> {
         ],
       ),
       floatingActionButton: _searchResults.isEmpty
-          ? FloatingActionButton.extended(
-              onPressed: () {
-                // Return the selected coordinates as a string
-                Navigator.pop(
-                  context,
-                  '${_center.latitude},${_center.longitude}',
-                );
-              },
-              label: const Text(
-                'Confirmar Local',
-                style: TextStyle(color: Colors.white),
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isReverseGeocoding ? Colors.grey : Colors.amber,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 8,
+                  shadowColor: Colors.amber.withOpacity(0.5),
+                ),
+                onPressed: _isReverseGeocoding ? null : () {
+                  Navigator.pop(context, _currentAddress);
+                },
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isReverseGeocoding)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    else
+                      const Icon(Icons.check_circle_outline),
+                    const SizedBox(width: 12),
+                    Text(
+                      _isReverseGeocoding ? 'A identificar local...' : 'Confirmar Este Local',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              icon: const Icon(Icons.check, color: Colors.white),
-              backgroundColor: Colors.green,
             )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
     );
   }
 }
