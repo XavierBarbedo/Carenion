@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/settings_service.dart';
+import 'auth_pages.dart';
 
 class SettingsPage extends StatefulWidget {
   final SettingsService settingsService;
@@ -60,10 +62,56 @@ class _SettingsPageState extends State<SettingsPage> {
               const Divider(height: 32),
               _buildSectionHeader('Medicação & Stock', Icons.medication),
               _buildLowStockField(),
+              const Divider(height: 32),
+              _buildSectionHeader('Conta', Icons.person),
+              _buildSignOutTile(),
             ],
           );
         },
       ),
+    );
+  }
+
+  Future<void> _signOut() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Terminar Sessão'),
+        content: const Text('Deseja terminar sessão?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Sair'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const LoginPage()),
+          (route) => false,
+        );
+      }
+    }
+  }
+
+  Widget _buildSignOutTile() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.logout, color: Colors.red),
+      title: const Text(
+        'Terminar Sessão',
+        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+      ),
+      onTap: _signOut,
     );
   }
 
