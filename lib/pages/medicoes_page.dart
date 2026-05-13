@@ -139,7 +139,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
                                 const Padding(
                                   padding: EdgeInsets.all(16),
                                   child: Text(
-                                    'Sem idosos registados.',
+                                    'Sem idosos/as registados/as.',
                                     style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
                                   ),
                                 ),
@@ -197,11 +197,11 @@ class _MedicoesPageState extends State<MedicoesPage> {
           ),
           children: [
             if (medicoesAgrupadas.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Text(
-                  'Nenhuma medição registada para este idoso.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic),
+                  'Nenhuma medição registada para este/a ${formatIdoso(idoso['sexo'], capitalize: false)}.',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey, fontStyle: FontStyle.italic),
                 ),
               )
             else

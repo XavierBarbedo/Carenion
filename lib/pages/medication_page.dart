@@ -126,7 +126,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       // 2. Buscamos os idosos destas famílias
       final idososFiltradosRes = await _supabase
           .from('idosos')
-          .select('id, nome, familia_id')
+          .select('id, nome, familia_id, sexo')
           .inFilter('familia_id', familiasMap.keys.toList());
       
       final idososMap = {for (var i in idososFiltradosRes) i['id']: i};
@@ -165,6 +165,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             ...m,
             'familia_nome': familiaNome ?? 'Sem Família',
             'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
+            'idoso_sexo': idoso?['sexo'],
             'stock_atual': stockMap[stockKey] ?? 0,
             'familia_id': familiaId,
           };
@@ -215,6 +216,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
               'familia_nome': familiaNome ?? 'Sem Família',
               'familia_id': familiaId,
               'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
+              'idoso_sexo': idoso?['sexo'],
               'stock_atual': stockMap[stockKey] ?? 0,
               'data_toma': dayStr,
               'is_today': isToday,
@@ -376,7 +378,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           notificationService.showNotification(
             id: med['id'] + 9000000, 
             title: 'Stock Baixo: ${med['nome']}',
-            body: 'Resta apenas $newStock unidades para o idoso ${med['idoso_nome']}.',
+            body: 'Restam apenas $newStock unidades para ${med['idoso_nome']}.',
           );
         }
 
@@ -482,7 +484,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         notificationService.showNotification(
           id: med['id'] + 9000000,
           title: 'Stock Baixo: ${med['nome']}',
-          body: 'Resta apenas $newStock unidades para o idoso ${med['idoso_nome']}.',
+          body: 'Restam apenas $newStock unidades para ${med['idoso_nome']}.',
         );
       }
 

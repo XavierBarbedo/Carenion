@@ -87,7 +87,7 @@ class _IdososPageState extends State<IdososPage> {
           child: Image.asset('images/carenion_Icon-removebg-preview.png'),
         ),
         title: const Text(
-          'Famílias e Idosos',
+          'Famílias e Idosos/as',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
         ),
         centerTitle: true,
@@ -174,13 +174,13 @@ class _IdososPageState extends State<IdososPage> {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
-                    subtitle: Text('${listIdosos.length} idosos associados'),
+                    subtitle: Text('${listIdosos.length} associados'),
                     children: [
                       if (listIdosos.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(16.0),
                           child: Text(
-                            'Nenhum idoso nesta família',
+                            'Ninguém registado nesta família',
                             style: TextStyle(
                               fontStyle: FontStyle.italic,
                               color: Colors.grey,
@@ -235,7 +235,7 @@ class _IdososPageState extends State<IdososPage> {
                             if (result == true) _fetchIdosos();
                           },
                           icon: const Icon(Icons.add, size: 20),
-                          label: const Text('Adicionar Idoso a esta Família'),
+                          label: const Text('Adicionar Idoso/a a esta Família'),
                         ),
                       ),
                     ],
@@ -419,7 +419,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registar Idoso'),
+        title: const Text('Registar Idoso/a'),
         backgroundColor: Colors.amber,
         foregroundColor: Colors.white,
       ),

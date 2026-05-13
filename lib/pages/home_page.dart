@@ -49,7 +49,7 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.people_outline),
             activeIcon: Icon(Icons.people),
-            label: 'Idosos',
+            label: 'Idosos/as',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.medication_outlined),

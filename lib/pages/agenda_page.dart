@@ -330,7 +330,7 @@ class _AgendaPageState extends State<AgendaPage> {
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Text(
-                      'Idoso: ${event['idoso_nome']} (${event['familia_nome']})',
+                      'Para: ${event['idoso_nome']} (${event['familia_nome']})',
                     ),
                   ),
                   Text('Tipo: ${event['tipo'] ?? 'Outro'}'),
@@ -410,7 +410,7 @@ class _AgendaPageState extends State<AgendaPage> {
                 const Divider(height: 30),
                 _detailRow(
                   Icons.person,
-                  'Idoso',
+                  'Idoso/a',
                   '${event['idoso_nome']} (${event['familia_nome']})',
                 ),
                 if (loc.isNotEmpty)
@@ -676,7 +676,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
 
               DropdownButtonFormField<int>(
                 decoration: InputDecoration(
-                  label: buildRequiredLabel('Idoso'),
+                  label: buildRequiredLabel('Idoso/a'),
                   prefixIcon: const Icon(Icons.person),
                 ),
                 value: _selectedIdosoId,

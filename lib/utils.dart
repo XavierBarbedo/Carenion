@@ -133,3 +133,21 @@ Widget buildRequiredLabel(String text) {
     ),
   );
 }
+/// Helper to return the correct term for 'Idoso' based on gender and plurality
+String formatIdoso(String? sexo, {bool plural = false, bool capitalize = true}) {
+  String termo;
+  if (plural) {
+    termo = "idosos/as";
+  } else if (sexo == 'F') {
+    termo = "idosa";
+  } else if (sexo == 'M') {
+    termo = "idoso";
+  } else {
+    termo = "idoso/a";
+  }
+
+  if (capitalize && termo.isNotEmpty) {
+    return termo[0].toUpperCase() + termo.substring(1);
+  }
+  return termo;
+}
