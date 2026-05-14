@@ -151,3 +151,18 @@ String formatIdoso(String? sexo, {bool plural = false, bool capitalize = true}) 
   }
   return termo;
 }
+
+ImageProvider? getAvatarProvider(String? url) {
+  if (url == null || url.isEmpty) return null;
+  if (url.startsWith('http')) {
+    return NetworkImage(url);
+  } else if (url.startsWith('data:image')) {
+    try {
+      final base64Str = url.split(',').last;
+      return MemoryImage(base64Decode(base64Str));
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}

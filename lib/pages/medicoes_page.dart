@@ -211,10 +211,15 @@ class _MedicoesPageState extends State<MedicoesPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: ExpansionTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.blueGrey.withOpacity(0.1),
-              child: const Icon(Icons.person, color: Colors.blueGrey, size: 20),
-            ),
+            leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
+                ? CircleAvatar(
+                    backgroundImage: getAvatarProvider(idoso['foto_url']),
+                    backgroundColor: Colors.blueGrey.withOpacity(0.1),
+                  )
+                : CircleAvatar(
+                    backgroundColor: Colors.blueGrey.withOpacity(0.1),
+                    child: const Icon(Icons.person, color: Colors.blueGrey, size: 20),
+                  ),
             title: Text(
               idoso['nome'],
               style: const TextStyle(fontWeight: FontWeight.bold),

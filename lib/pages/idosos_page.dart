@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:image_picker/image_picker.dart';
 import 'medication_page.dart';
 import '../utils.dart';
 
@@ -196,10 +200,18 @@ class _IdososPageState extends State<IdososPage> {
                       ...listIdosos
                           .map(
                             (idoso) => ListTile(
-                              leading: const Icon(
-                                Icons.person,
-                                color: Colors.amber,
-                              ),
+                              leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
+                                  ? CircleAvatar(
+                                      backgroundImage: getAvatarProvider(idoso['foto_url']),
+                                      backgroundColor: Colors.amber.withOpacity(0.2),
+                                    )
+                                  : const CircleAvatar(
+                                      backgroundColor: Colors.amber,
+                                      child: Icon(
+                                        Icons.person,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                               title: SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: Text(idoso['nome'] ?? 'Sem nome'),
@@ -309,6 +321,21 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
   List<dynamic> _familias = [];
   bool _isLoading = false;
 
+  Uint8List? _fotoBytes;
+  XFile? _fotoFile;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      setState(() {
+        _fotoFile = pickedFile;
+        _fotoBytes = bytes;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -365,6 +392,11 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
       // Debug log to verify the userId being sent
       print('DEBUG: Iniciando registo para userId: ${widget.userId}');
 
+      String? fotoUrl;
+      if (_fotoFile != null && _fotoBytes != null) {
+        fotoUrl = 'data:image/jpeg;base64,${base64Encode(_fotoBytes!)}';
+      }
+
       // 1. Inserir na tabela 'idosos'
       final idosoResponse = await supabase
           .from('idosos')
@@ -382,6 +414,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
             'patologias': _patologiasController.text,
             'observacoes': _obsController.text,
             'familia_id': _selectedFamiliaId,
+            'foto_url': fotoUrl,
             'criado_em': DateTime.now().toIso8601String(),
           })
           .select()
@@ -452,6 +485,36 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
           key: _formKey,
           child: Column(
             children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.amber.withOpacity(0.2),
+                        backgroundImage: _fotoBytes != null ? MemoryImage(_fotoBytes!) : null,
+                        child: _fotoBytes == null
+                            ? const Icon(Icons.person, size: 50, color: Colors.amber)
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               _buildTextField(
                 _nomeController,
                 'Nome Completo',
@@ -766,6 +829,19 @@ class IdosoDetailsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.amber.withOpacity(0.2),
+                backgroundImage: idosoData['foto_url'] != null && idosoData['foto_url'].toString().isNotEmpty
+                    ? getAvatarProvider(idosoData['foto_url'])
+                    : null,
+                child: idosoData['foto_url'] == null || idosoData['foto_url'].toString().isEmpty
+                    ? const Icon(Icons.person, size: 60, color: Colors.amber)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 24),
             _buildDetailItem(Icons.person_outline, 'Nome', idosoData['nome']),
             _buildDetailItem(
               Icons.calendar_today_outlined,
@@ -912,6 +988,22 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
   List<dynamic> _familias = [];
   bool _isLoading = false;
 
+  Uint8List? _fotoBytes;
+  String? _currentFotoUrl;
+  XFile? _fotoFile;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      setState(() {
+        _fotoFile = pickedFile;
+        _fotoBytes = bytes;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -936,6 +1028,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
     _seguroNumController = TextEditingController(text: widget.idosoData['seguro_numero']);
     _temSeguroSaude = widget.idosoData['seguro_saude'] != null && widget.idosoData['seguro_saude'].toString().isNotEmpty;
 
+    _currentFotoUrl = widget.idosoData['foto_url'];
     _sexo = widget.idosoData['sexo'] ?? 'M';
     _selectedFamiliaId = widget.idosoData['familia_id'];
     _fetchFamilias();
@@ -996,6 +1089,11 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
     try {
       final supabase = Supabase.instance.client;
 
+      String? fotoUrl = _currentFotoUrl;
+      if (_fotoFile != null && _fotoBytes != null) {
+        fotoUrl = 'data:image/jpeg;base64,${base64Encode(_fotoBytes!)}';
+      }
+
       await supabase
           .from('idosos')
           .update({
@@ -1012,6 +1110,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
             'patologias': _patologiasController.text,
             'observacoes': _obsController.text,
             'familia_id': _selectedFamiliaId,
+            'foto_url': fotoUrl,
           })
           .eq('id', widget.idosoData['id']);
 
@@ -1070,6 +1169,38 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
           key: _formKey,
           child: Column(
             children: [
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.amber.withOpacity(0.2),
+                        backgroundImage: _fotoBytes != null 
+                            ? MemoryImage(_fotoBytes!) 
+                            : getAvatarProvider(_currentFotoUrl),
+                        child: _fotoBytes == null && (_currentFotoUrl == null || _currentFotoUrl!.isEmpty)
+                            ? const Icon(Icons.person, size: 50, color: Colors.amber)
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.amber,
+                            shape: BoxShape.circle,
+                          ),
+                          padding: const EdgeInsets.all(8),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
               _buildTextField(
                 _nomeController,
                 'Nome Completo',

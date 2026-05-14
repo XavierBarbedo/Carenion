@@ -60,7 +60,7 @@ class _AgendaPageState extends State<AgendaPage> {
       // 2. Buscamos os idosos destas famílias
       final idososFiltradosRes = await _supabase
           .from('idosos')
-          .select('id, nome, familia_id')
+          .select('id, nome, familia_id, foto_url')
           .inFilter('familia_id', familiasMap.keys.toList());
       
       final idososMap = {for (var i in idososFiltradosRes) i['id']: i};
@@ -98,6 +98,7 @@ class _AgendaPageState extends State<AgendaPage> {
           'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
           'familia_nome': familiaNome ?? 'Sem Família',
           'familia_id': familiaId,
+          'foto_url': idoso?['foto_url'],
         });
       }
 
@@ -418,6 +419,7 @@ class _AgendaPageState extends State<AgendaPage> {
                   Icons.person,
                   'Idoso/a',
                   '${event['idoso_nome']} (${event['familia_nome']})',
+                  fotoUrl: event['foto_url'],
                 ),
                 if (loc.isNotEmpty)
                   _detailRow(Icons.location_on, 'Localização', loc),
@@ -454,13 +456,16 @@ class _AgendaPageState extends State<AgendaPage> {
     );
   }
 
-  Widget _detailRow(IconData icon, String title, String value) {
+  Widget _detailRow(IconData icon, String title, String value, {String? fotoUrl}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          if (fotoUrl != null && fotoUrl.isNotEmpty)
+            CircleAvatar(radius: 12, backgroundImage: getAvatarProvider(fotoUrl))
+          else
+            Icon(icon, size: 20, color: Colors.grey[600]),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -707,7 +712,16 @@ class _AddEventoPageState extends State<AddEventoPage> {
                     .map(
                       (i) => DropdownMenuItem<int>(
                         value: i['id'],
-                        child: Text(i['nome']),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            i['foto_url'] != null && i['foto_url'].toString().isNotEmpty
+                                ? CircleAvatar(radius: 12, backgroundImage: getAvatarProvider(i['foto_url']))
+                                : const CircleAvatar(radius: 12, child: Icon(Icons.person, size: 12)),
+                            const SizedBox(width: 8),
+                            Text(i['nome']),
+                          ],
+                        ),
                       ),
                     )
                     .toList(),
