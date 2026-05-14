@@ -462,10 +462,15 @@ class _AgendaPageState extends State<AgendaPage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (fotoUrl != null && fotoUrl.isNotEmpty)
-            CircleAvatar(radius: 12, backgroundImage: getAvatarProvider(fotoUrl))
-          else
-            Icon(icon, size: 20, color: Colors.grey[600]),
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Center(
+              child: (fotoUrl != null && fotoUrl.isNotEmpty)
+                  ? CircleAvatar(radius: 12, backgroundImage: getAvatarProvider(fotoUrl))
+                  : Icon(icon, size: 20, color: Colors.grey[600]),
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

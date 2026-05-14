@@ -136,10 +136,17 @@ class _MedicoesPageState extends State<MedicoesPage> {
                         margin: const EdgeInsets.only(bottom: 16),
                         elevation: 2,
                         shadowColor: Colors.black12,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xFF1A1A1A)
+                            : const Color(0xFFFFFBE6),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                           initiallyExpanded: true,
-                          leading: const Icon(Icons.family_restroom, color: Colors.amber),
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.amber.withOpacity(0.1),
+                            child: const Icon(Icons.family_restroom, color: Colors.amber, size: 20),
+                          ),
                           title: Text(
                             familia['nome'] ?? 'Sem nome',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -201,16 +208,15 @@ class _MedicoesPageState extends State<MedicoesPage> {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+        padding: const EdgeInsets.symmetric(vertical: 0),
         child: Card(
-          color: Theme.of(context).brightness == Brightness.dark 
-              ? Colors.grey[900] 
-              : Colors.white,
+          color: Colors.transparent,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
             leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
                 ? CircleAvatar(
                     backgroundImage: getAvatarProvider(idoso['foto_url']),
@@ -225,6 +231,8 @@ class _MedicoesPageState extends State<MedicoesPage> {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             trailing: IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
               icon: const Icon(Icons.add_circle, color: Colors.amber, size: 28),
               onPressed: () => _addMedicao(idoso),
               tooltip: 'Adicionar Medição',
@@ -256,7 +264,12 @@ class _MedicoesPageState extends State<MedicoesPage> {
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
         dense: true,
-        leading: Icon(icon, size: 20, color: Colors.amber),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        leading: CircleAvatar(
+          radius: 14,
+          backgroundColor: Colors.amber.withOpacity(0.1),
+          child: Icon(icon, size: 14, color: Colors.amber),
+        ),
         title: Text(
           categoria,
           style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey, fontSize: 14),
@@ -267,13 +280,14 @@ class _MedicoesPageState extends State<MedicoesPage> {
           final unidade = _getUnidade(categoria);
 
           return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            margin: const EdgeInsets.symmetric(vertical: 4),
             decoration: BoxDecoration(
               color: Colors.amber.withOpacity(0.05),
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListTile(
               dense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               title: Text(
                 unidade.isNotEmpty ? '${m['valor']} $unidade' : m['valor'],
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
@@ -283,6 +297,8 @@ class _MedicoesPageState extends State<MedicoesPage> {
                 style: const TextStyle(fontSize: 12),
               ),
               trailing: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
                 onPressed: () => _confirmDeleteMedicao(m['id']),
               ),

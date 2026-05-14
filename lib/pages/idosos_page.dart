@@ -170,6 +170,7 @@ class _IdososPageState extends State<IdososPage> {
                   ),
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ExpansionTile(
+                    tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                     leading: CircleAvatar(
                       backgroundColor: Colors.amber.withOpacity(0.2),
                       child: const Icon(
@@ -200,6 +201,7 @@ class _IdososPageState extends State<IdososPage> {
                       ...listIdosos
                           .map(
                             (idoso) => ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                               leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
                                   ? CircleAvatar(
                                       backgroundImage: getAvatarProvider(idoso['foto_url']),
@@ -924,7 +926,13 @@ class IdosoDetailsPage extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.amber, size: 28),
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Center(
+              child: Icon(icon, color: Colors.amber, size: 22),
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
