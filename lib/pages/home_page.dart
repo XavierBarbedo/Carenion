@@ -28,7 +28,10 @@ class _HomePageState extends State<HomePage> {
       case 3:
         return MedicoesPage(userData: widget.userData);
       case 4:
-        return SettingsPage(settingsService: settingsService);
+        return SettingsPage(
+          settingsService: settingsService,
+          userData: widget.userData,
+        );
       default:
         return IdososPage(userData: widget.userData);
     }

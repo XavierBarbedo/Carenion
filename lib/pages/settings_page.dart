@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/settings_service.dart';
+import '../utils.dart';
 import 'auth_pages.dart';
 
 class SettingsPage extends StatefulWidget {
   final SettingsService settingsService;
+  final Map<String, dynamic> userData;
 
-  const SettingsPage({super.key, required this.settingsService});
+  const SettingsPage({
+    super.key,
+    required this.settingsService,
+    required this.userData,
+  });
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -70,6 +76,8 @@ class _SettingsPageState extends State<SettingsPage> {
               _buildLowStockField(),
               const Divider(height: 32),
               _buildSectionHeader('Conta', Icons.person),
+              _buildChangeEmailTile(),
+              _buildChangePasswordTile(),
               _buildSignOutTile(),
             ],
           );
@@ -118,6 +126,293 @@ class _SettingsPageState extends State<SettingsPage> {
         style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
       ),
       onTap: _signOut,
+    );
+  }
+
+  Widget _buildChangePasswordTile() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.lock_outline, color: Colors.amber),
+      title: const Text(
+        'Mudar Palavra-passe',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _showChangePasswordDialog,
+    );
+  }
+
+  Widget _buildChangeEmailTile() {
+    final userEmail = widget.userData['email'] ?? '';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.email_outlined, color: Colors.amber),
+      title: const Text(
+        'Mudar Email',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: Text(userEmail),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _showChangeEmailDialog,
+    );
+  }
+
+  Future<void> _showChangePasswordDialog() async {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isLoading = false;
+    bool currentObscure = true;
+    bool newObscure = true;
+    bool confirmObscure = true;
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Mudar Palavra-passe'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: currentPasswordController,
+                  obscureText: currentObscure,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Palavra-passe Atual'),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(currentObscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () => setDialogState(
+                          () => currentObscure = !currentObscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newPasswordController,
+                  obscureText: newObscure,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Nova Palavra-passe'),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(newObscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setDialogState(() => newObscure = !newObscure),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: confirmObscure,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Confirmar Nova Palavra-passe'),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(confirmObscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () => setDialogState(
+                          () => confirmObscure = !confirmObscure),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (newPasswordController.text !=
+                          confirmPasswordController.text) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('As passwords não coincidem')),
+                        );
+                        return;
+                      }
+
+                      setDialogState(() => isLoading = true);
+                      try {
+                        final supabase = Supabase.instance.client;
+                        final user = supabase.auth.currentUser;
+
+                        // Verificar password atual re-autenticando
+                        await supabase.auth.signInWithPassword(
+                          email: user!.email!,
+                          password: currentPasswordController.text,
+                        );
+
+                        // Atualizar password
+                        await supabase.auth.updateUser(
+                          UserAttributes(password: newPasswordController.text),
+                        );
+
+                        if (mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Palavra-passe atualizada com sucesso!')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Erro ao atualizar: ${translateSupabaseError(e)}')),
+                          );
+                        }
+                      } finally {
+                        setDialogState(() => isLoading = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Confirmar',
+                      style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showChangeEmailDialog() async {
+    final currentPasswordController = TextEditingController();
+    final newEmailController = TextEditingController();
+    bool isLoading = false;
+    bool obscureCurrent = true;
+    final currentEmail = Supabase.instance.client.auth.currentUser?.email ?? '';
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Mudar Email'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Email atual: ${widget.userData['email'] ?? currentEmail}',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: currentPasswordController,
+                  obscureText: obscureCurrent,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Palavra-passe Atual'),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscureCurrent
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () => setDialogState(
+                          () => obscureCurrent = !obscureCurrent),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Novo Email'),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (newEmailController.text.isEmpty) {
+                        return;
+                      }
+
+                      setDialogState(() => isLoading = true);
+                      try {
+                        final supabase = Supabase.instance.client;
+                        final user = supabase.auth.currentUser;
+
+                        // Verificar password atual re-autenticando
+                        await supabase.auth.signInWithPassword(
+                          email: user!.email!,
+                          password: currentPasswordController.text,
+                        );
+
+                        // Atualizar email diretamente via função SQL (sem email de confirmação)
+                        await supabase.rpc('update_user_email', params: {
+                          'user_id': widget.userData['id'],
+                          'new_email': newEmailController.text,
+                        });
+
+                        // Refrescar a sessão para que o currentUser reflita o novo email
+                        await supabase.auth.refreshSession();
+
+                        if (mounted) {
+                          setState(() {
+                            widget.userData['email'] = newEmailController.text;
+                          });
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Email atualizado com sucesso!')),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Erro ao atualizar: ${translateSupabaseError(e)}')),
+                          );
+                        }
+                      } finally {
+                        setDialogState(() => isLoading = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Confirmar',
+                      style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
