@@ -727,26 +727,81 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             children: [
               ...groupedByDate.keys.map((dateKey) {
                 final items = groupedByDate[dateKey]!;
-                final isToday = items.any((i) => i['is_today']);
+                final isToday = items.any((i) => i['is_today'] == true);
+                final isFuture = items.any((i) => i['is_future'] == true);
+
+                Color dayColor;
+                IconData dayIcon;
+                String statusLabel;
+
+                if (isToday) {
+                  dayColor = Theme.of(context).brightness == Brightness.dark
+                      ? Colors.amber[400]!
+                      : Colors.amber[800]!;
+                  dayIcon = Icons.today;
+                  statusLabel = 'Hoje';
+                } else if (isFuture) {
+                  dayColor = Theme.of(context).brightness == Brightness.dark
+                      ? Colors.blue[300]!
+                      : Colors.blue[700]!;
+                  dayIcon = Icons.upcoming;
+                  statusLabel = 'Futuro';
+                } else {
+                  dayColor = Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[500]!
+                      : Colors.grey[600]!;
+                  dayIcon = Icons.history;
+                  statusLabel = 'Passado';
+                }
 
                 return ExpansionTile(
                   shape: const Border(),
                   collapsedShape: const Border(),
                   initiallyExpanded: isToday,
+                  iconColor: dayColor,
+                  collapsedIconColor: dayColor,
+                  leading: Icon(
+                    dayIcon,
+                    color: dayColor,
+                    size: 22,
+                  ),
                   title: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: Text(
-                      dateKey,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: isToday ? Colors.amber[800] : Colors.blueGrey,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          dateKey,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: dayColor,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: dayColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: dayColor.withOpacity(0.3), width: 1),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: dayColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   children: items.map((item) {
                     final idosoNome = item['idoso_nome'] ?? 'Desconhecido';
-                    final isFuture = item['is_future'];
+                    final isFuture = item['is_future'] == true;
+                    final isToday = item['is_today'] == true;
 
                     return Card(
                       elevation: 1,
@@ -757,7 +812,15 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      color: isFuture ? Colors.grey[50] : null,
+                      color: isFuture
+                          ? (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.blueGrey.withOpacity(0.05)
+                              : Colors.blue[50]?.withOpacity(0.15))
+                          : (!isToday
+                              ? (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white10.withOpacity(0.02)
+                                  : Colors.grey[100])
+                              : null),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -767,7 +830,11 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                               Icons.medical_services,
                               color: item['tomada']
                                   ? Colors.green
-                                  : (isFuture ? Colors.grey : Colors.amber),
+                                  : (isFuture
+                                      ? Colors.grey
+                                      : (!isToday
+                                          ? Colors.grey[400]
+                                          : Colors.amber)),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
