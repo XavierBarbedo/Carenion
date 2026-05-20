@@ -24,8 +24,8 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _thresholdController.text =
-        widget.settingsService.lowStockThreshold.toString();
+    _thresholdController.text = widget.settingsService.lowStockThreshold
+        .toString();
   }
 
   @override
@@ -48,7 +48,10 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(width: 10),
             const Text(
               'Definições',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.amber,
+              ),
             ),
           ],
         ),
@@ -79,11 +82,91 @@ class _SettingsPageState extends State<SettingsPage> {
               _buildChangeEmailTile(),
               _buildChangePasswordTile(),
               _buildSignOutTile(),
+              _buildDeleteAccountTile(),
             ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Apagar Conta',
+          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Atenção: Esta ação é irreversível.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Todos os seus dados, incluindo famílias, idosos e medicação associada, serão permanentemente eliminados.',
+            ),
+            SizedBox(height: 12),
+            Text('Deseja mesmo apagar a sua conta?'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Apagar Definitivamente'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final supabase = Supabase.instance.client;
+        final userId = widget.userData['id'];
+
+        // 1. Eliminar o registo do utilizador na tabela 'users'
+        // Se houver ON DELETE CASCADE na BD (que é o padrão para manter integridade),
+        // isto deve limpar os dados relacionados.
+        await supabase.from('users').delete().eq('id', userId);
+
+        // 2. Terminar sessão (isto limpa o token local)
+        await supabase.auth.signOut();
+
+        if (mounted) {
+          Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const LoginPage()),
+            (route) => false,
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Conta apagada com sucesso. Lamentamos vê-lo partir.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Erro ao apagar conta: ${translateSupabaseError(e)}',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _signOut() async {
@@ -126,6 +209,18 @@ class _SettingsPageState extends State<SettingsPage> {
         style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
       ),
       onTap: _signOut,
+    );
+  }
+
+  Widget _buildDeleteAccountTile() {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.delete_forever, color: Colors.red),
+      title: const Text(
+        'Apagar Conta',
+        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+      ),
+      onTap: _deleteAccount,
     );
   }
 
@@ -182,11 +277,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     label: buildRequiredLabel('Palavra-passe Atual'),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(currentObscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        currentObscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                       onPressed: () => setDialogState(
-                          () => currentObscure = !currentObscure),
+                        () => currentObscure = !currentObscure,
+                      ),
                     ),
                   ),
                 ),
@@ -198,9 +296,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     label: buildRequiredLabel('Nova Palavra-passe'),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(newObscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        newObscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                       onPressed: () =>
                           setDialogState(() => newObscure = !newObscure),
                     ),
@@ -214,11 +314,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     label: buildRequiredLabel('Confirmar Nova Palavra-passe'),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(confirmObscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        confirmObscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                       onPressed: () => setDialogState(
-                          () => confirmObscure = !confirmObscure),
+                        () => confirmObscure = !confirmObscure,
+                      ),
                     ),
                   ),
                 ),
@@ -238,7 +341,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           confirmPasswordController.text) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('As passwords não coincidem')),
+                            content: Text('As passwords não coincidem'),
+                          ),
                         );
                         return;
                       }
@@ -263,16 +367,20 @@ class _SettingsPageState extends State<SettingsPage> {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text(
-                                    'Palavra-passe atualizada com sucesso!')),
+                              content: Text(
+                                'Palavra-passe atualizada com sucesso!',
+                              ),
+                            ),
                           );
                         }
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content: Text(
-                                    'Erro ao atualizar: ${translateSupabaseError(e)}')),
+                              content: Text(
+                                'Erro ao atualizar: ${translateSupabaseError(e)}',
+                              ),
+                            ),
                           );
                         }
                       } finally {
@@ -285,10 +393,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Confirmar',
-                      style: TextStyle(color: Colors.white)),
+                  : const Text(
+                      'Confirmar',
+                      style: TextStyle(color: Colors.white),
+                    ),
             ),
           ],
         ),
@@ -313,9 +425,13 @@ class _SettingsPageState extends State<SettingsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Email atual: ${widget.userData['email'] ?? currentEmail}',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.bold)),
+                Text(
+                  'Email atual: ${widget.userData['email'] ?? currentEmail}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 TextField(
                   controller: currentPasswordController,
@@ -324,11 +440,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     label: buildRequiredLabel('Palavra-passe Atual'),
                     border: const OutlineInputBorder(),
                     suffixIcon: IconButton(
-                      icon: Icon(obscureCurrent
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        obscureCurrent
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                       onPressed: () => setDialogState(
-                          () => obscureCurrent = !obscureCurrent),
+                        () => obscureCurrent = !obscureCurrent,
+                      ),
                     ),
                   ),
                 ),
@@ -369,10 +488,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         );
 
                         // Atualizar email diretamente via função SQL (sem email de confirmação)
-                        await supabase.rpc('update_user_email', params: {
-                          'user_id': widget.userData['id'],
-                          'new_email': newEmailController.text,
-                        });
+                        await supabase.rpc(
+                          'update_user_email',
+                          params: {
+                            'user_id': widget.userData['id'],
+                            'new_email': newEmailController.text,
+                          },
+                        );
 
                         // Refrescar a sessão para que o currentUser reflita o novo email
                         await supabase.auth.refreshSession();
@@ -384,15 +506,18 @@ class _SettingsPageState extends State<SettingsPage> {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Email atualizado com sucesso!')),
+                              content: Text('Email atualizado com sucesso!'),
+                            ),
                           );
                         }
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                                content: Text(
-                                    'Erro ao atualizar: ${translateSupabaseError(e)}')),
+                              content: Text(
+                                'Erro ao atualizar: ${translateSupabaseError(e)}',
+                              ),
+                            ),
                           );
                         }
                       } finally {
@@ -405,10 +530,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
-                  : const Text('Confirmar',
-                      style: TextStyle(color: Colors.white)),
+                  : const Text(
+                      'Confirmar',
+                      style: TextStyle(color: Colors.white),
+                    ),
             ),
           ],
         ),
@@ -439,9 +568,13 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildThemeDropdown() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Tema da Aplicação',
-          style: TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: const Text('Escolha entre Claro, Escuro ou o Padrão do Sistema'),
+      title: const Text(
+        'Tema da Aplicação',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: const Text(
+        'Escolha entre Claro, Escuro ou o Padrão do Sistema',
+      ),
       trailing: DropdownButton<ThemeMode>(
         value: widget.settingsService.themeMode,
         onChanged: (ThemeMode? newMode) {
@@ -450,18 +583,9 @@ class _SettingsPageState extends State<SettingsPage> {
           }
         },
         items: const [
-          DropdownMenuItem(
-            value: ThemeMode.system,
-            child: Text('Sistema'),
-          ),
-          DropdownMenuItem(
-            value: ThemeMode.light,
-            child: Text('Claro'),
-          ),
-          DropdownMenuItem(
-            value: ThemeMode.dark,
-            child: Text('Escuro'),
-          ),
+          DropdownMenuItem(value: ThemeMode.system, child: Text('Sistema')),
+          DropdownMenuItem(value: ThemeMode.light, child: Text('Claro')),
+          DropdownMenuItem(value: ThemeMode.dark, child: Text('Escuro')),
         ],
       ),
     );
@@ -470,10 +594,13 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildNotificationDropdown() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Aviso de Eventos Próximos',
-          style: TextStyle(fontWeight: FontWeight.w500)),
+      title: const Text(
+        'Aviso de Eventos Próximos',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
       subtitle: const Text(
-          'Destaque no botão e aviso visual de eventos muito próximos'),
+        'Destaque no botão e aviso visual de eventos muito próximos',
+      ),
       trailing: DropdownButton<int>(
         value: widget.settingsService.eventNotificationTime,
         onChanged: (int? newMinutes) {
@@ -482,26 +609,11 @@ class _SettingsPageState extends State<SettingsPage> {
           }
         },
         items: const [
-          DropdownMenuItem(
-            value: 15,
-            child: Text('15 Minutos'),
-          ),
-          DropdownMenuItem(
-            value: 30,
-            child: Text('30 Minutos'),
-          ),
-          DropdownMenuItem(
-            value: 60,
-            child: Text('1 Hora'),
-          ),
-          DropdownMenuItem(
-            value: 120,
-            child: Text('2 Horas'),
-          ),
-          DropdownMenuItem(
-            value: 1440,
-            child: Text('1 Dia'),
-          ),
+          DropdownMenuItem(value: 15, child: Text('15 Minutos')),
+          DropdownMenuItem(value: 30, child: Text('30 Minutos')),
+          DropdownMenuItem(value: 60, child: Text('1 Hora')),
+          DropdownMenuItem(value: 120, child: Text('2 Horas')),
+          DropdownMenuItem(value: 1440, child: Text('1 Dia')),
         ],
       ),
     );
@@ -510,8 +622,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildLanguageDropdown() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Idioma do Calendário',
-          style: TextStyle(fontWeight: FontWeight.w500)),
+      title: const Text(
+        'Idioma do Calendário',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
       subtitle: const Text('Selecione o idioma da agenda de cuidados'),
       trailing: DropdownButton<String>(
         value: widget.settingsService.calendarLanguage,
@@ -521,14 +635,8 @@ class _SettingsPageState extends State<SettingsPage> {
           }
         },
         items: const [
-          DropdownMenuItem(
-            value: 'pt',
-            child: Text('Português'),
-          ),
-          DropdownMenuItem(
-            value: 'en',
-            child: Text('English'),
-          ),
+          DropdownMenuItem(value: 'pt', child: Text('Português')),
+          DropdownMenuItem(value: 'en', child: Text('English')),
         ],
       ),
     );
@@ -537,10 +645,11 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildLowStockField() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('Alerta de Stock Baixo',
-          style: TextStyle(fontWeight: FontWeight.w500)),
-      subtitle:
-          const Text('Limite de unidades a partir do qual será avisado'),
+      title: const Text(
+        'Alerta de Stock Baixo',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: const Text('Limite de unidades a partir do qual será avisado'),
       trailing: SizedBox(
         width: 100,
         child: TextField(
