@@ -170,6 +170,8 @@ class _IdososPageState extends State<IdososPage> {
                   ),
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ExpansionTile(
+                    shape: const Border(),
+                    collapsedShape: const Border(),
                     tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                     leading: CircleAvatar(
                       backgroundColor: Colors.amber.withOpacity(0.2),

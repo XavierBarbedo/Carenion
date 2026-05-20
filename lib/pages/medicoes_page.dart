@@ -133,23 +133,26 @@ class _MedicoesPageState extends State<MedicoesPage> {
                     return Theme(
                       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                       child: Card(
-                        margin: const EdgeInsets.only(bottom: 16),
+                        margin: const EdgeInsets.only(bottom: 12),
                         elevation: 2,
-                        shadowColor: Colors.black12,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? const Color(0xFF1A1A1A)
-                            : const Color(0xFFFFFBE6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: ExpansionTile(
+                          shape: const Border(),
+                          collapsedShape: const Border(),
                           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                           initiallyExpanded: true,
                           leading: CircleAvatar(
-                            backgroundColor: Colors.amber.withOpacity(0.1),
-                            child: const Icon(Icons.family_restroom, color: Colors.amber, size: 20),
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                            child: const Icon(Icons.family_restroom, color: Colors.amber),
                           ),
-                          title: Text(
-                            familia['nome'] ?? 'Sem nome',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          title: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Text(
+                              familia['nome'] ?? 'Sem nome',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                           children: idosos.isEmpty
                               ? [
@@ -216,19 +219,23 @@ class _MedicoesPageState extends State<MedicoesPage> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: ExpansionTile(
+            shape: const Border(),
+            collapsedShape: const Border(),
             tilePadding: const EdgeInsets.symmetric(horizontal: 16),
             leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
                 ? CircleAvatar(
                     backgroundImage: getAvatarProvider(idoso['foto_url']),
-                    backgroundColor: Colors.blueGrey.withOpacity(0.1),
+                    backgroundColor: Colors.amber.withOpacity(0.2),
                   )
-                : CircleAvatar(
-                    backgroundColor: Colors.blueGrey.withOpacity(0.1),
-                    child: const Icon(Icons.person, color: Colors.blueGrey, size: 20),
+                : const CircleAvatar(
+                    backgroundColor: Colors.amber,
+                    child: Icon(Icons.person, color: Colors.white, size: 20),
                   ),
-            title: Text(
-              idoso['nome'],
-              style: const TextStyle(fontWeight: FontWeight.bold),
+            title: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Text(
+                idoso['nome'] ?? 'Sem nome',
+              ),
             ),
             trailing: IconButton(
               padding: EdgeInsets.zero,
@@ -263,6 +270,8 @@ class _MedicoesPageState extends State<MedicoesPage> {
     return Theme(
       data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
       child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
         dense: true,
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
         leading: CircleAvatar(

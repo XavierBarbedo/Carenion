@@ -542,6 +542,12 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         ],
         bottom: TabBar(
           controller: _tabController,
+          dividerColor: Colors.transparent,
+          indicator: BoxDecoration(
+            borderRadius: BorderRadius.circular(25),
+            color: Colors.amber.withOpacity(0.15),
+          ),
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
             Tab(text: 'Medicação Normal'),
             Tab(text: 'Medicação SOS'),
@@ -551,9 +557,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           unselectedLabelColor: Theme.of(context).brightness == Brightness.dark
               ? Colors.amber.withOpacity(0.4)
               : Colors.amber.withOpacity(0.5),
-          indicatorColor: Colors.amber,
-          labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-          unselectedLabelStyle: TextStyle(fontSize: 12),
+          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          unselectedLabelStyle: const TextStyle(fontSize: 12),
         ),
       ),
       body: TabBarView(
@@ -597,6 +602,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           ),
           color: Colors.amber.withOpacity(0.05),
           child: ExpansionTile(
+            shape: const Border(),
+            collapsedShape: const Border(),
             initiallyExpanded: true,
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
             title: SingleChildScrollView(
@@ -700,7 +707,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           color: Colors.amber.withOpacity(0.05),
           child: ExpansionTile(
             initiallyExpanded: true,
-            shape: const Border(), // Remove the borders on expansion
+            shape: const Border(),
+            collapsedShape: const Border(),
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -722,6 +730,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                 final isToday = items.any((i) => i['is_today']);
 
                 return ExpansionTile(
+                  shape: const Border(),
+                  collapsedShape: const Border(),
                   initiallyExpanded: isToday,
                   title: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -881,6 +891,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
           child: ExpansionTile(
+            shape: const Border(),
+            collapsedShape: const Border(),
             leading: const Icon(Icons.family_restroom, color: Colors.amber),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -906,6 +918,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                 : idosos.map((idoso) {
                     final meds = idoso['medicacoes'] as List;
                     return ExpansionTile(
+                      shape: const Border(),
+                      collapsedShape: const Border(),
                       title: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Text(idoso['nome'] ?? 'Sem nome'),
