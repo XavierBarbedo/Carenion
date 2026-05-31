@@ -225,6 +225,23 @@ class _IdososPageState extends State<IdososPage> {
                                 scrollDirection: Axis.horizontal,
                                 child: Text(idoso['nome'] ?? 'Sem nome'),
                               ),
+                              subtitle: () {
+                                final raw = idoso['data_nascimento'];
+                                if (raw == null || raw.toString().isEmpty) return null;
+                                try {
+                                  final nascimento = DateTime.tryParse(raw.toString());
+                                  if (nascimento != null) {
+                                    final hoje = DateTime.now();
+                                    int anos = hoje.year - nascimento.year;
+                                    if (hoje.month < nascimento.month ||
+                                        (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
+                                      anos--;
+                                    }
+                                    return Text('$anos anos');
+                                  }
+                                } catch (_) {}
+                                return null;
+                              }(),
                               trailing: const Icon(
                                 Icons.arrow_forward_ios,
                                 size: 14,
@@ -869,7 +886,40 @@ class IdosoDetailsPage extends StatelessWidget {
             _buildDetailItem(
               Icons.calendar_today_outlined,
               'Data de Nascimento',
-              idosoData['data_nascimento'],
+              () {
+                final raw = idosoData['data_nascimento'];
+                if (raw == null || raw.toString().isEmpty) return null;
+                try {
+                  final parsed = DateTime.tryParse(raw.toString());
+                  if (parsed != null) {
+                    return DateFormat('dd/MM/yyyy').format(parsed);
+                  }
+                } catch (_) {}
+                return raw.toString();
+              }(),
+            ),
+            _buildDetailItem(
+              Icons.cake_outlined,
+              'Idade',
+              () {
+                final raw = idosoData['data_nascimento'];
+                if (raw == null || raw.toString().isEmpty) return null;
+                try {
+                  DateTime? nascimento = DateTime.tryParse(raw.toString());
+                  if (nascimento == null) {
+                    nascimento = DateFormat('dd/MM/yyyy').parse(raw.toString());
+                  }
+                  final hoje = DateTime.now();
+                  int anos = hoje.year - nascimento.year;
+                  if (hoje.month < nascimento.month ||
+                      (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
+                    anos--;
+                  }
+                  return '$anos anos';
+                } catch (_) {
+                  return null;
+                }
+              }(),
             ),
             _buildDetailItem(
               Icons.wc_outlined,
