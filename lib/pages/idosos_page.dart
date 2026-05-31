@@ -173,13 +173,18 @@ class _IdososPageState extends State<IdososPage> {
                     shape: const Border(),
                     collapsedShape: const Border(),
                     tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.amber.withOpacity(0.2),
-                      child: const Icon(
-                        Icons.family_restroom,
-                        color: Colors.amber,
-                      ),
-                    ),
+                    leading: familia['foto_url'] != null && familia['foto_url'].toString().isNotEmpty
+                        ? CircleAvatar(
+                            backgroundImage: getAvatarProvider(familia['foto_url']),
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                          )
+                        : CircleAvatar(
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                            child: const Icon(
+                              Icons.family_restroom,
+                              color: Colors.amber,
+                            ),
+                          ),
                     title: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Text(
@@ -549,9 +554,23 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
                     .map(
                       (f) => DropdownMenuItem<int>(
                         value: f['id'],
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(f['nome'] ?? 'Sem nome'),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            f['foto_url'] != null && f['foto_url'].toString().isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 12,
+                                    backgroundImage: getAvatarProvider(f['foto_url']),
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                  )
+                                : CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                    child: const Icon(Icons.family_restroom, size: 12, color: Colors.amber),
+                                  ),
+                            const SizedBox(width: 8),
+                            Text(f['nome'] ?? 'Sem nome'),
+                          ],
                         ),
                       ),
                     )
@@ -1241,9 +1260,23 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
                     .map(
                       (f) => DropdownMenuItem<int>(
                         value: f['id'],
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(f['nome'] ?? 'Sem nome'),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            f['foto_url'] != null && f['foto_url'].toString().isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 12,
+                                    backgroundImage: getAvatarProvider(f['foto_url']),
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                  )
+                                : CircleAvatar(
+                                    radius: 12,
+                                    backgroundColor: Colors.amber.withOpacity(0.2),
+                                    child: const Icon(Icons.family_restroom, size: 12, color: Colors.amber),
+                                  ),
+                            const SizedBox(width: 8),
+                            Text(f['nome'] ?? 'Sem nome'),
+                          ],
                         ),
                       ),
                     )
@@ -1452,89 +1485,55 @@ class _FamiliasPageState extends State<FamiliasPage> {
   }
 
   Future<void> _addFamilia() async {
-    final controller = TextEditingController();
-    await showDialog(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nova Família'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(label: buildRequiredLabel('Nome da Família')),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (controller.text.isNotEmpty) {
-                try {
-                  await _supabase.from('familias').insert({
-                    'nome': controller.text,
-                    'user_id': _supabase.auth.currentUser!.id,
-                  });
-                  _hasChanges = true;
-                  if (mounted) Navigator.pop(context);
-                  _fetchFamilias();
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(translateSupabaseError(e))),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (context) => const FamiliaFormDialog(),
     );
+
+    if (result != null && result['nome'].isNotEmpty) {
+      try {
+        await _supabase.from('familias').insert({
+          'nome': result['nome'],
+          'foto_url': result['foto_url'],
+          'user_id': _supabase.auth.currentUser!.id,
+        });
+        _hasChanges = true;
+        _fetchFamilias();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(translateSupabaseError(e))),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _editFamilia(Map<String, dynamic> familia) async {
-    final controller = TextEditingController(text: familia['nome']);
-    await showDialog(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Editar Família'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(label: buildRequiredLabel('Nome da Família')),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (controller.text.isNotEmpty) {
-                try {
-                  await _supabase
-                      .from('familias')
-                      .update({'nome': controller.text})
-                      .eq('id', familia['id']);
-                  _hasChanges = true;
-                  if (mounted) Navigator.pop(context);
-                  _fetchFamilias();
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(translateSupabaseError(e))),
-                    );
-                  }
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (context) => FamiliaFormDialog(familia: familia),
     );
+
+    if (result != null && result['nome'].isNotEmpty) {
+      try {
+        await _supabase
+            .from('familias')
+            .update({
+              'nome': result['nome'],
+              'foto_url': result['foto_url'],
+            })
+            .eq('id', familia['id']);
+        _hasChanges = true;
+        _fetchFamilias();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(translateSupabaseError(e))),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _deleteFamilia(dynamic familia) async {
@@ -1631,10 +1630,18 @@ class _FamiliasPageState extends State<FamiliasPage> {
                 final familia = _familias[index];
                 return Card(
                   child: ListTile(
-                    leading: const Icon(
-                      Icons.family_restroom,
-                      color: Colors.amber,
-                    ),
+                    leading: familia['foto_url'] != null && familia['foto_url'].toString().isNotEmpty
+                        ? CircleAvatar(
+                            backgroundImage: getAvatarProvider(familia['foto_url']),
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                          )
+                        : CircleAvatar(
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                            child: const Icon(
+                              Icons.family_restroom,
+                              color: Colors.amber,
+                            ),
+                          ),
                     title: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Text(familia['nome'] ?? 'Sem nome'),
@@ -1667,6 +1674,152 @@ class _FamiliasPageState extends State<FamiliasPage> {
         backgroundColor: Colors.amber,
         child: const Icon(Icons.add, color: Colors.white),
       ),
+    );
+  }
+}
+
+class FamiliaFormDialog extends StatefulWidget {
+  final Map<String, dynamic>? familia;
+  const FamiliaFormDialog({super.key, this.familia});
+
+  @override
+  State<FamiliaFormDialog> createState() => _FamiliaFormDialogState();
+}
+
+class _FamiliaFormDialogState extends State<FamiliaFormDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nomeController;
+  Uint8List? _fotoBytes;
+  String? _currentFotoUrl;
+  XFile? _fotoFile;
+  final ImagePicker _picker = ImagePicker();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nomeController = TextEditingController(
+      text: widget.familia != null ? widget.familia!['nome'] : '',
+    );
+    _currentFotoUrl = widget.familia != null ? widget.familia!['foto_url'] : null;
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      setState(() {
+        _fotoFile = pickedFile;
+        _fotoBytes = bytes;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.familia == null ? 'Nova Família' : 'Editar Família'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: _pickImage,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundColor: Colors.amber.withOpacity(0.2),
+                      backgroundImage: _fotoBytes != null
+                          ? MemoryImage(_fotoBytes!)
+                          : getAvatarProvider(_currentFotoUrl),
+                      child: _fotoBytes == null &&
+                              (_currentFotoUrl == null || _currentFotoUrl!.isEmpty)
+                          ? const Icon(Icons.family_restroom, size: 40, color: Colors.amber)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.amber,
+                          shape: BoxShape.circle,
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nomeController,
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Nome da Família'),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Campo obrigatório';
+                  }
+                  return null;
+                },
+                autofocus: true,
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: _isLoading
+              ? null
+              : () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  setState(() => _isLoading = true);
+                  
+                  String? fotoUrl = _currentFotoUrl;
+                  if (_fotoFile != null && _fotoBytes != null) {
+                    fotoUrl = 'data:image/jpeg;base64,${base64Encode(_fotoBytes!)}';
+                  }
+                  
+                  Navigator.pop(context, {
+                    'nome': _nomeController.text.trim(),
+                    'foto_url': fotoUrl,
+                  });
+                },
+          child: _isLoading
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

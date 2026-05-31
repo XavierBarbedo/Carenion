@@ -143,10 +143,15 @@ class _MedicoesPageState extends State<MedicoesPage> {
                           collapsedShape: const Border(),
                           tilePadding: const EdgeInsets.symmetric(horizontal: 16),
                           initiallyExpanded: true,
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.amber.withOpacity(0.2),
-                            child: const Icon(Icons.family_restroom, color: Colors.amber),
-                          ),
+                          leading: familia['foto_url'] != null && familia['foto_url'].toString().isNotEmpty
+                              ? CircleAvatar(
+                                  backgroundImage: getAvatarProvider(familia['foto_url']),
+                                  backgroundColor: Colors.amber.withOpacity(0.2),
+                                )
+                              : CircleAvatar(
+                                  backgroundColor: Colors.amber.withOpacity(0.2),
+                                  child: const Icon(Icons.family_restroom, color: Colors.amber),
+                                ),
                           title: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Text(

@@ -113,10 +113,11 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       // 1. Primeiro buscamos as famílias do utilizador
       final familiasUserRes = await _supabase
           .from('familias')
-          .select('id, nome')
+          .select('id, nome, foto_url')
           .eq('user_id', userId);
       
       final familiasMap = {for (var f in familiasUserRes) f['id']: f['nome']};
+      final familiasFotoMap = {for (var f in familiasUserRes) f['id']: f['foto_url']};
 
       if (familiasMap.isEmpty) {
         setState(() => _tomasSemana = []);
@@ -164,6 +165,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           return {
             ...m,
             'familia_nome': familiaNome ?? 'Sem Família',
+            'familia_foto_url': familiaId != null ? familiasFotoMap[familiaId] : null,
             'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
             'idoso_sexo': idoso?['sexo'],
             'stock_atual': stockMap[stockKey] ?? 0,
@@ -214,6 +216,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             projection.add({
               ...med,
               'familia_nome': familiaNome ?? 'Sem Família',
+              'familia_foto_url': familiaId != null ? familiasFotoMap[familiaId] : null,
               'familia_id': familiaId,
               'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
               'idoso_sexo': idoso?['sexo'],
@@ -605,7 +608,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             shape: const Border(),
             collapsedShape: const Border(),
             initiallyExpanded: true,
-            leading: const Icon(Icons.family_restroom, color: Colors.amber),
+            leading: items.isNotEmpty && items.first['familia_foto_url'] != null && items.first['familia_foto_url'].toString().isNotEmpty
+                ? CircleAvatar(
+                    radius: 18,
+                    backgroundImage: getAvatarProvider(items.first['familia_foto_url']),
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                  )
+                : CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
+                  ),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(
@@ -709,7 +722,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             initiallyExpanded: true,
             shape: const Border(),
             collapsedShape: const Border(),
-            leading: const Icon(Icons.family_restroom, color: Colors.amber),
+            leading: familyItems.isNotEmpty && familyItems.first['familia_foto_url'] != null && familyItems.first['familia_foto_url'].toString().isNotEmpty
+                ? CircleAvatar(
+                    radius: 18,
+                    backgroundImage: getAvatarProvider(familyItems.first['familia_foto_url']),
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                  )
+                : CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
+                  ),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(
@@ -960,7 +983,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           child: ExpansionTile(
             shape: const Border(),
             collapsedShape: const Border(),
-            leading: const Icon(Icons.family_restroom, color: Colors.amber),
+            leading: familia['foto_url'] != null && familia['foto_url'].toString().isNotEmpty
+                ? CircleAvatar(
+                    radius: 18,
+                    backgroundImage: getAvatarProvider(familia['foto_url']),
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                  )
+                : CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
+                  ),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(
