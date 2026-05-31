@@ -212,6 +212,18 @@ class _LoginPageState extends State<LoginPage> {
                       setDialogState(() => isSending = true);
                       try {
                         final supabase = Supabase.instance.client;
+
+                        // Check if email exists in database
+                        final emailCheck = await supabase
+                            .from('users')
+                            .select('id')
+                            .eq('email', email)
+                            .maybeSingle();
+
+                        if (emailCheck == null) {
+                          throw Exception('Não existe nenhuma conta associada a este email.');
+                        }
+
                         final redirectTo = kIsWeb ? Uri.base.origin : null;
 
                         await supabase.auth.resetPasswordForEmail(

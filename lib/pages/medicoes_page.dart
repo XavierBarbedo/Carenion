@@ -242,12 +242,19 @@ class _MedicoesPageState extends State<MedicoesPage> {
                 idoso['nome'] ?? 'Sem nome',
               ),
             ),
-            trailing: IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(Icons.add_circle, color: Colors.amber, size: 28),
-              onPressed: () => _addMedicao(idoso),
-              tooltip: 'Adicionar Medição',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.add_circle, color: Colors.amber, size: 28),
+                  onPressed: () => _addMedicao(idoso),
+                  tooltip: 'Adicionar Medição',
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.expand_more, color: Colors.grey),
+              ],
             ),
             children: [
               if (medicoesAgrupadas.isEmpty)
