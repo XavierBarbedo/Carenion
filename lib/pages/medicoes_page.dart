@@ -29,11 +29,29 @@ class _MedicoesPageState extends State<MedicoesPage> {
       final userId = widget.userData['id'];
 
       // 1. Busca famílias do utilizador
-      final familiasRes = await _supabase
-          .from('familias')
-          .select()
-          .eq('user_id', userId)
-          .order('nome');
+      final List<dynamic> familiasRes;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await _supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', userId);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          familiasRes = await _supabase
+              .from('familias')
+              .select()
+              .inFilter('id', familiaIds)
+              .order('nome');
+        } else {
+          familiasRes = [];
+        }
+      } else {
+        familiasRes = await _supabase
+            .from('familias')
+            .select()
+            .eq('user_id', userId)
+            .order('nome');
+      }
 
       final familias = List<Map<String, dynamic>>.from(familiasRes);
 
@@ -118,10 +136,12 @@ class _MedicoesPageState extends State<MedicoesPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
           : _familias.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'Nenhuma família registada.',
-                    style: TextStyle(color: Colors.grey),
+                    widget.userData['tipo'] == 'cuidadora'
+                        ? 'Nenhuma família associada.'
+                        : 'Nenhuma família registada.',
+                    style: const TextStyle(color: Colors.grey),
                   ),
                 )
               : ListView.builder(
@@ -317,12 +337,17 @@ class _MedicoesPageState extends State<MedicoesPage> {
                 '$dateStr${m['observacoes'] != null && m['observacoes'].toString().isNotEmpty ? ' - ${m['observacoes']}' : ''}',
                 style: const TextStyle(fontSize: 12),
               ),
-              trailing: IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
-                onPressed: () => _confirmDeleteMedicao(m['id']),
-              ),
+              trailing: () {
+                final isCuidadora = widget.userData['tipo'] == 'cuidadora';
+                final canDelete = !isCuidadora || (m['criado_por'] == widget.userData['id']);
+                if (!canDelete) return const SizedBox.shrink();
+                return IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                  onPressed: () => _confirmDeleteMedicao(m),
+                );
+              }(),
             ),
           );
         }).toList(),
@@ -438,13 +463,27 @@ class _MedicoesPageState extends State<MedicoesPage> {
                 }
 
                 try {
-                  await _supabase.from('medicoes').insert({
+                  final insertData = {
                     'idoso_id': idoso['id'],
                     'tipo': tipoFinal,
                     'valor': valor,
                     'data_medicao': selectedDate.toIso8601String(),
                     'observacoes': obsController.text,
-                  });
+                    'criado_por': widget.userData['id'],
+                  };
+                  final response = await _supabase.from('medicoes').insert(insertData).select().single();
+                  final int medId = response['id'];
+
+                  if (widget.userData['tipo'] == 'cuidadora') {
+                    await logCuidadoraAction(
+                      acao: 'criar',
+                      entidade: 'medição',
+                      entidadeId: medId,
+                      familiaId: idoso['familia_id'],
+                      detalhes: '$tipoFinal: $valor ${_getUnidade(tipoFinal)}',
+                      cuidadoraId: widget.userData['id'],
+                    );
+                  }
                   if (mounted) Navigator.pop(context);
                   _fetchData(); // Recarregar tudo
                 } catch (e) {
@@ -463,7 +502,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
     );
   }
 
-  Future<void> _confirmDeleteMedicao(dynamic id) async {
+  Future<void> _confirmDeleteMedicao(dynamic medicao) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -480,7 +519,23 @@ class _MedicoesPageState extends State<MedicoesPage> {
     );
     if (confirm == true) {
       try {
-        await _supabase.from('medicoes').delete().eq('id', id);
+        if (widget.userData['tipo'] == 'cuidadora') {
+          final idosoRes = await _supabase
+              .from('idosos')
+              .select('familia_id')
+              .eq('id', medicao['idoso_id'])
+              .single();
+
+          await logCuidadoraAction(
+            acao: 'eliminar',
+            entidade: 'medição',
+            entidadeId: medicao['id'],
+            familiaId: idosoRes['familia_id'],
+            detalhes: '${medicao['tipo']}: ${medicao['valor']}',
+            cuidadoraId: widget.userData['id'],
+          );
+        }
+        await _supabase.from('medicoes').delete().eq('id', medicao['id']);
         _fetchData(); // Recarregar tudo
       } catch (e) {
         if (mounted) {

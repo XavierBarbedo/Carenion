@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:crypto/crypto.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 
 const String MED_API_URL =
     'https://clinicaltables.nlm.nih.gov/api/rxterms/v3/search?terms=';
@@ -166,3 +167,33 @@ ImageProvider? getAvatarProvider(String? url) {
   }
   return null;
 }
+
+Future<void> logCuidadoraAction({
+  required String acao,
+  required String entidade,
+  required dynamic entidadeId,
+  required int familiaId,
+  required String detalhes,
+  required String cuidadoraId,
+}) async {
+  try {
+    final supabase = Supabase.instance.client;
+    // Use auth.currentUser.id to guarantee the value matches auth.uid() in RLS
+    final authUid = supabase.auth.currentUser?.id ?? cuidadoraId;
+    debugPrint('[LOG] Registando: acao=$acao entidade=$entidade id=$entidadeId familia=$familiaId cuidadora=$authUid');
+    await supabase.from('cuidadora_logs').insert({
+      'cuidadora_id': authUid,
+      'familia_id': familiaId,
+      'acao': acao,
+      'entidade': entidade,
+      'entidade_id': entidadeId.toString(),
+      'detalhes': detalhes,
+      'criado_em': DateTime.now().toIso8601String(),
+    });
+    debugPrint('[LOG] Registado com sucesso!');
+  } catch (e, stack) {
+    debugPrint('[LOG] ERRO ao registar log de cuidadora: $e');
+    debugPrint('[LOG] Stack: $stack');
+  }
+}
+

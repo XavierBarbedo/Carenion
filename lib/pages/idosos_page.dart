@@ -31,13 +31,31 @@ class _IdososPageState extends State<IdososPage> {
     try {
       final supabase = Supabase.instance.client;
 
-      // 1. Busca apenas as famílias do utilizador
+      // 1. Busca as famílias
       debugPrint('[DEBUG] IdososPage: Buscando famílias para userId: ${widget.userData['id']}');
-      final familiasResponse = await supabase
-          .from('familias')
-          .select()
-          .eq('user_id', widget.userData['id'])
-          .order('nome');
+      final List<dynamic> familiasResponse;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', widget.userData['id']);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          familiasResponse = await supabase
+              .from('familias')
+              .select()
+              .inFilter('id', familiaIds)
+              .order('nome');
+        } else {
+          familiasResponse = [];
+        }
+      } else {
+        familiasResponse = await supabase
+            .from('familias')
+            .select()
+            .eq('user_id', widget.userData['id'])
+            .order('nome');
+      }
       
       debugPrint('[DEBUG] IdososPage: Encontradas ${familiasResponse.length} famílias');
 
@@ -106,21 +124,23 @@ class _IdososPageState extends State<IdososPage> {
             : const Color(0xFFFFFBE6),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.amber),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.family_restroom),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FamiliasPage(userData: widget.userData),
+        actions: widget.userData['tipo'] == 'cuidadora'
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(Icons.family_restroom),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FamiliasPage(userData: widget.userData),
+                      ),
+                    );
+                    _fetchIdosos();
+                  },
+                  tooltip: 'Gerir Famílias',
                 ),
-              );
-              _fetchIdosos();
-            },
-            tooltip: 'Gerir Famílias',
-          ),
-        ],
+              ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.amber))
@@ -135,24 +155,28 @@ class _IdososPageState extends State<IdososPage> {
                     color: Colors.grey,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Nenhuma família registada',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  Text(
+                    widget.userData['tipo'] == 'cuidadora'
+                        ? 'Nenhuma família associada'
+                        : 'Nenhuma família registada',
+                    style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => 
-                              FamiliasPage(userData: widget.userData),
-                        ),
-                      );
-                      _fetchIdosos();
-                    },
-                    child: const Text('Registar Família'),
-                  ),
+                  if (widget.userData['tipo'] != 'cuidadora') ...[
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => 
+                                FamiliasPage(userData: widget.userData),
+                          ),
+                        );
+                        _fetchIdosos();
+                      },
+                      child: const Text('Registar Família'),
+                    ),
+                  ],
                 ],
               ),
             )
@@ -252,7 +276,7 @@ class _IdososPageState extends State<IdososPage> {
                                   MaterialPageRoute(
                                     builder: (context) => IdosoDetailsPage(
                                       idosoData: idoso,
-                                      userId: widget.userData['id'],
+                                      userData: widget.userData,
                                     ),
                                   ),
                                 );
@@ -263,52 +287,55 @@ class _IdososPageState extends State<IdososPage> {
                             ),
                           )
                           .toList(),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: TextButton.icon(
-                          onPressed: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RegisterIdosoPage(
-                                  userId: widget.userData['id'],
-                                  initialFamiliaId: familia['id'],
+                      if (widget.userData['tipo'] != 'cuidadora')
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: TextButton.icon(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => RegisterIdosoPage(
+                                    userId: widget.userData['id'],
+                                    initialFamiliaId: familia['id'],
+                                  ),
                                 ),
-                              ),
-                            );
-                            if (result == true) _fetchIdosos();
-                          },
-                          icon: const Icon(Icons.add, size: 20),
-                          label: const Text('Adicionar Idoso/a a esta Família'),
+                              );
+                              if (result == true) _fetchIdosos();
+                            },
+                            icon: const Icon(Icons.add, size: 20),
+                            label: const Text('Adicionar Idoso/a a esta Família'),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 );
               },
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          if (_familias.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Por favor, registe primeiro uma família'),
-              ),
-            );
-            return;
-          }
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  RegisterIdosoPage(userId: widget.userData['id']),
+      floatingActionButton: widget.userData['tipo'] == 'cuidadora'
+          ? null
+          : FloatingActionButton(
+              onPressed: () async {
+                if (_familias.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Por favor, registe primeiro uma família'),
+                    ),
+                  );
+                  return;
+                }
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        RegisterIdosoPage(userId: widget.userData['id']),
+                  ),
+                );
+                _fetchIdosos();
+              },
+              backgroundColor: Colors.amber,
+              child: const Icon(Icons.add, color: Colors.white),
             ),
-          );
-          _fetchIdosos();
-        },
-        backgroundColor: Colors.amber,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
     );
   }
 }
@@ -754,12 +781,12 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
 
 class IdosoDetailsPage extends StatelessWidget {
   final Map<String, dynamic> idosoData;
-  final String userId;
+  final Map<String, dynamic> userData;
 
   const IdosoDetailsPage({
     super.key,
     required this.idosoData,
-    required this.userId,
+    required this.userData,
   });
 
   Future<void> _confirmDelete(BuildContext context) async {
@@ -840,29 +867,31 @@ class IdosoDetailsPage extends StatelessWidget {
             : const Color(0xFFFFFBE6),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.amber),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditIdosoPage(
-                    idosoData: idosoData,
-                    userId: userId,
-                  ),
+        actions: userData['tipo'] == 'cuidadora'
+            ? null
+            : [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditIdosoPage(
+                          idosoData: idosoData,
+                          userId: userData['id'],
+                        ),
+                      ),
+                    );
+                    if (result == true) {
+                      Navigator.pop(context, true);
+                    }
+                  },
                 ),
-              );
-              if (result == true) {
-                Navigator.pop(context, true);
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: () => _confirmDelete(context),
-          ),
-        ],
+                IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => _confirmDelete(context),
+                ),
+              ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -974,7 +1003,10 @@ class IdosoDetailsPage extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          ManageMedicacoesPage(idosoData: idosoData),
+                          ManageMedicacoesPage(
+                            idosoData: idosoData,
+                            userData: userData,
+                          ),
                     ),
                   );
                 },

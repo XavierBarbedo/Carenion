@@ -4,6 +4,7 @@ import 'medication_page.dart';
 import 'agenda_page.dart';
 import 'settings_page.dart';
 import 'medicoes_page.dart';
+import 'cuidadora_page.dart';
 import '../main.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,23 +18,47 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
+  bool get _isCuidadora => widget.userData['tipo'] == 'cuidadora';
+
   Widget _getPage(int index) {
-    switch (index) {
-      case 0:
-        return IdososPage(userData: widget.userData);
-      case 1:
-        return MedicamentosPage(userData: widget.userData);
-      case 2:
-        return AgendaPage(userData: widget.userData);
-      case 3:
-        return MedicoesPage(userData: widget.userData);
-      case 4:
-        return SettingsPage(
-          settingsService: settingsService,
-          userData: widget.userData,
-        );
-      default:
-        return IdososPage(userData: widget.userData);
+    if (_isCuidadora) {
+      switch (index) {
+        case 0:
+          return IdososPage(userData: widget.userData);
+        case 1:
+          return MedicamentosPage(userData: widget.userData);
+        case 2:
+          return AgendaPage(userData: widget.userData);
+        case 3:
+          return MedicoesPage(userData: widget.userData);
+        case 4:
+          return SettingsPage(
+            settingsService: settingsService,
+            userData: widget.userData,
+          );
+        default:
+          return IdososPage(userData: widget.userData);
+      }
+    } else {
+      switch (index) {
+        case 0:
+          return IdososPage(userData: widget.userData);
+        case 1:
+          return MedicamentosPage(userData: widget.userData);
+        case 2:
+          return AgendaPage(userData: widget.userData);
+        case 3:
+          return MedicoesPage(userData: widget.userData);
+        case 4:
+          return CuidadoraPage(userData: widget.userData);
+        case 5:
+          return SettingsPage(
+            settingsService: settingsService,
+            userData: widget.userData,
+          );
+        default:
+          return IdososPage(userData: widget.userData);
+      }
     }
   }
 
@@ -48,28 +73,34 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(
             icon: Icon(Icons.people_outline),
             activeIcon: Icon(Icons.people),
             label: 'Idosos/as',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.medication_outlined),
             activeIcon: Icon(Icons.medication),
             label: 'Medicação',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.calendar_month_outlined),
             activeIcon: Icon(Icons.calendar_month),
             label: 'Agenda',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.monitor_heart_outlined),
             activeIcon: Icon(Icons.monitor_heart),
             label: 'Medições',
           ),
-          BottomNavigationBarItem(
+          if (!_isCuidadora)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.assignment_ind_outlined),
+              activeIcon: Icon(Icons.assignment_ind),
+              label: 'Cuidador(a)',
+            ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
             label: 'Definições',

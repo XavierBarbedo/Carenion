@@ -43,10 +43,27 @@ class _AgendaPageState extends State<AgendaPage> {
 
       // 1. Primeiro buscamos as famílias do utilizador
       debugPrint('[DEBUG] Agenda: Buscando famílias para userId: $userId');
-      final familiasUserRes = await _supabase
-          .from('familias')
-          .select('id, nome')
-          .eq('user_id', userId);
+      final List<dynamic> familiasUserRes;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await _supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', userId);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          familiasUserRes = await _supabase
+              .from('familias')
+              .select('id, nome')
+              .inFilter('id', familiaIds);
+        } else {
+          familiasUserRes = [];
+        }
+      } else {
+        familiasUserRes = await _supabase
+            .from('familias')
+            .select('id, nome')
+            .eq('user_id', userId);
+      }
       
       final familiasMap = {for (var f in familiasUserRes) f['id']: f['nome']};
 
@@ -75,7 +92,7 @@ class _AgendaPageState extends State<AgendaPage> {
       // 3. Buscamos eventos apenas para esses idosos (SEM joins SQL para evitar ambiguidade)
       final response = await _supabase
           .from('eventos')
-          .select()
+          .select('*, users(nome, tipo)')
           .inFilter('idoso_id', idososMap.keys.toList())
           .order('data_inicio');
 
@@ -341,35 +358,52 @@ class _AgendaPageState extends State<AgendaPage> {
                     ),
                   ),
                   Text('Tipo: ${event['tipo'] ?? 'Outro'}'),
+                  if (event['users'] != null && event['users']['tipo'] == 'cuidadora')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        'Criado por Cuidador(a): ${event['users']['nome'] ?? 'Desconhecido'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.blueGrey,
+                        ),
+                      ),
+                    ),
                 ],
               ),
-              trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: Colors.blue),
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                            builder: (context) => AddEventoPage(
-                              selectedDate: startTime,
-                              event: event,
-                              userData: widget.userData,
-                            ),
-                      ),
-                    );
-                    if (result == true) {
-                      _fetchEvents();
-                    }
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                  onPressed: () => _confirmDelete(event),
-                ),
-              ],
-            ),
+              trailing: () {
+                final isCuidadora = widget.userData['tipo'] == 'cuidadora';
+                final canModify = !isCuidadora || (event['criado_por'] == widget.userData['id']);
+                if (!canModify) return const SizedBox.shrink();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                                builder: (context) => AddEventoPage(
+                                  selectedDate: startTime,
+                                  event: event,
+                                  userData: widget.userData,
+                                ),
+                          ),
+                        );
+                        if (result == true) {
+                          _fetchEvents();
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                      onPressed: () => _confirmDelete(event),
+                    ),
+                  ],
+                );
+              }(),
             isThreeLine: true,
           ),
         ),
@@ -415,12 +449,18 @@ class _AgendaPageState extends State<AgendaPage> {
                   ),
                 ),
                 const Divider(height: 30),
-                _detailRow(
+                 _detailRow(
                   Icons.person,
                   'Idoso/a',
                   '${event['idoso_nome']} (${event['familia_nome']})',
                   fotoUrl: event['foto_url'],
                 ),
+                if (event['users'] != null && event['users']['tipo'] == 'cuidadora')
+                  _detailRow(
+                    Icons.assignment_ind,
+                    'Criado por',
+                    '${event['users']['nome'] ?? 'Cuidador(a)'} (Cuidador(a))',
+                  ),
                 if (loc.isNotEmpty)
                   _detailRow(Icons.location_on, 'Localização', loc),
                 if (desc.isNotEmpty)
@@ -532,6 +572,16 @@ class _AgendaPageState extends State<AgendaPage> {
 
     if (confirm == true) {
       try {
+        if (widget.userData['tipo'] == 'cuidadora') {
+          await logCuidadoraAction(
+            acao: 'eliminar',
+            entidade: 'evento',
+            entidadeId: event['id'],
+            familiaId: event['familia_id'],
+            detalhes: event['titulo'] ?? 'Sem Título',
+            cuidadoraId: widget.userData['id'],
+          );
+        }
         await _supabase.from('eventos').delete().eq('id', event['id']);
         await notificationService.cancelNotification(event['id']);
         _fetchEvents();
@@ -607,11 +657,29 @@ class _AddEventoPageState extends State<AddEventoPage> {
     try {
       final userId = widget.userData['id'];
 
-      final famRes = await _supabase
-          .from('familias')
-          .select()
-          .eq('user_id', userId)
-          .order('nome');
+      final List<dynamic> famRes;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await _supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', userId);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          famRes = await _supabase
+              .from('familias')
+              .select()
+              .inFilter('id', familiaIds)
+              .order('nome');
+        } else {
+          famRes = [];
+        }
+      } else {
+        famRes = await _supabase
+            .from('familias')
+            .select()
+            .eq('user_id', userId)
+            .order('nome');
+      }
       setState(() {
         _familias = famRes;
       });
@@ -871,23 +939,39 @@ class _AddEventoPageState extends State<AddEventoPage> {
       'tipo': _selectedTipo == 'Outro' ? _outroController.text.trim() : _selectedTipo,
       'data_inicio': startDateTime.toIso8601String(),
       'localizacao': _localController.text,
+      if (widget.event == null) 'criado_por': widget.userData['id'],
     };
 
     if (widget.event != null) {
         await _supabase.from('eventos').update(eventData).eq('id', widget.event!['id']);
         _scheduleEventNotification(widget.event!['id'], startDateTime);
+        
+        if (widget.userData['tipo'] == 'cuidadora') {
+          await logCuidadoraAction(
+            acao: 'editar',
+            entidade: 'evento',
+            entidadeId: widget.event!['id'],
+            familiaId: _selectedFamiliaId!,
+            detalhes: _tituloController.text,
+            cuidadoraId: widget.userData['id'],
+          );
+        }
     } else {
         eventData['criado_em'] = DateTime.now().toIso8601String();
         final response = await _supabase.from('eventos').insert(eventData).select().single();
         final int eventId = response['id'];
         _scheduleEventNotification(eventId, startDateTime);
         
-        // Push notification imediata para novo evento
-        notificationService.showNotification(
-          id: eventId + 7000000,
-          title: 'Novo Evento Agendado',
-          body: '${_tituloController.text} para ${DateFormat('dd/MM HH:mm').format(startDateTime)}',
-        );
+        if (widget.userData['tipo'] == 'cuidadora') {
+          await logCuidadoraAction(
+            acao: 'criar',
+            entidade: 'evento',
+            entidadeId: eventId,
+            familiaId: _selectedFamiliaId!,
+            detalhes: _tituloController.text,
+            cuidadoraId: widget.userData['id'],
+          );
+        }
     }
 
     if (mounted) {

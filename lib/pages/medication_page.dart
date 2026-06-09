@@ -35,13 +35,31 @@ class _MedicamentosPageState extends State<MedicamentosPage>
     try {
       final userId = widget.userData['id'];
 
-      // 1. Busca apenas as famílias do utilizador
+      // 1. Busca as famílias
       debugPrint('[DEBUG] Medicação: Buscando famílias para userId: $userId');
-      final familiasRes = await _supabase
-          .from('familias')
-          .select()
-          .eq('user_id', userId)
-          .order('nome');
+      final List<dynamic> familiasRes;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await _supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', userId);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          familiasRes = await _supabase
+              .from('familias')
+              .select()
+              .inFilter('id', familiaIds)
+              .order('nome');
+        } else {
+          familiasRes = [];
+        }
+      } else {
+        familiasRes = await _supabase
+            .from('familias')
+            .select()
+            .eq('user_id', userId)
+            .order('nome');
+      }
       
       debugPrint('[DEBUG] Medicação: Encontradas ${familiasRes.length} famílias');
       
@@ -110,11 +128,28 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       final todayStr = now.toIso8601String().substring(0, 10);
       final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
 
-      // 1. Primeiro buscamos as famílias do utilizador
-      final familiasUserRes = await _supabase
-          .from('familias')
-          .select('id, nome, foto_url')
-          .eq('user_id', userId);
+      // 1. Primeiro buscamos as famílias
+      final List<dynamic> familiasUserRes;
+      if (widget.userData['tipo'] == 'cuidadora') {
+        final fcResponse = await _supabase
+            .from('familia_cuidadores')
+            .select('familia_id')
+            .eq('cuidadora_id', userId);
+        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
+        if (familiaIds.isNotEmpty) {
+          familiasUserRes = await _supabase
+              .from('familias')
+              .select('id, nome, foto_url')
+              .inFilter('id', familiaIds);
+        } else {
+          familiasUserRes = [];
+        }
+      } else {
+        familiasUserRes = await _supabase
+            .from('familias')
+            .select('id, nome, foto_url')
+            .eq('user_id', userId);
+      }
       
       final familiasMap = {for (var f in familiasUserRes) f['id']: f['nome']};
       final familiasFotoMap = {for (var f in familiasUserRes) f['id']: f['foto_url']};
@@ -331,6 +366,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             .eq('familia_id', familiaId)
             .eq('nome_medicamento', medNomeLower);
 
+        if (widget.userData['tipo'] == 'cuidadora') {
+          await logCuidadoraAction(
+            acao: 'desmarcar consumo',
+            entidade: 'medicamento',
+            entidadeId: med['id'],
+            familiaId: med['familia_id'],
+            detalhes: 'Toma revertida para: ${med['nome']}',
+            cuidadoraId: widget.userData['id'],
+          );
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -366,6 +412,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
           'data': now,
           'quantidade_tomada': amountToAdjust,
         });
+
+        if (widget.userData['tipo'] == 'cuidadora') {
+          await logCuidadoraAction(
+            acao: 'consumir',
+            entidade: 'medicamento',
+            entidadeId: med['id'],
+            familiaId: med['familia_id'],
+            detalhes: 'Registada toma de ${med['nome']} ($amountToAdjust unidades)',
+            cuidadoraId: widget.userData['id'],
+          );
+        }
 
         // 3. Atualizar stock na tabela centralizada
         final int newStock = currentStock - amountToAdjust;
@@ -473,6 +530,17 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         'data': now,
         'quantidade_tomada': amountToAdjust,
       });
+
+      if (widget.userData['tipo'] == 'cuidadora') {
+        await logCuidadoraAction(
+          acao: 'consumir SOS',
+          entidade: 'medicamento',
+          entidadeId: med['id'],
+          familiaId: med['familia_id'],
+          detalhes: 'Registada toma SOS de ${med['nome']} ($amountToAdjust unidades)',
+          cuidadoraId: widget.userData['id'],
+        );
+      }
 
       final int newStock = currentStock - amountToAdjust;
       final String medNomeLower = med['nome'].toString().toLowerCase();
@@ -880,32 +948,34 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.settings,
-                                    color: Colors.blueGrey,
-                                    size: 20,
-                                  ),
-                                  onPressed: () async {
-                                    final idosoRes = await _supabase
-                                        .from('idosos')
-                                        .select()
-                                        .eq('id', item['idoso_id'])
-                                        .single();
-                                    if (mounted) {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => ManageMedicacoesPage(
-                                            idosoData: idosoRes,
-                                            initialMedToEdit: Map<String, dynamic>.from(item as Map),
+                                if (widget.userData['tipo'] != 'cuidadora' || item['criado_por'] == widget.userData['id'])
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.settings,
+                                      color: Colors.blueGrey,
+                                      size: 20,
+                                    ),
+                                    onPressed: () async {
+                                      final idosoRes = await _supabase
+                                          .from('idosos')
+                                          .select()
+                                          .eq('id', item['idoso_id'])
+                                          .single();
+                                      if (mounted) {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ManageMedicacoesPage(
+                                              idosoData: idosoRes,
+                                              userData: widget.userData,
+                                              initialMedToEdit: Map<String, dynamic>.from(item as Map),
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                      _fetchData();
-                                    }
-                                  },
-                                ),
+                                        );
+                                        _fetchData();
+                                      }
+                                    },
+                                  ),
                                 if (item['tomada'])
                                   IconButton(
                                     icon: const Icon(
@@ -1028,22 +1098,25 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.add_circle_outline,
-                              color: Colors.green,
+                            IconButton(
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                color: Colors.green,
+                              ),
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ManageMedicacoesPage(
+                                          idosoData: idoso,
+                                          userData: widget.userData,
+                                        ),
+                                  ),
+                                );
+                                _fetchData();
+                              },
                             ),
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      ManageMedicacoesPage(idosoData: idoso),
-                                ),
-                              );
-                              _fetchData();
-                            },
-                          ),
                           const Icon(Icons.chevron_right),
                         ],
                       ),
@@ -1102,93 +1175,106 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                                             ),
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            color: Colors.blue,
-                                            size: 20,
-                                          ),
-                                          tooltip: 'Editar',
-                                          onPressed: () async {
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ManageMedicacoesPage(
-                                                      idosoData: idoso,
-                                                      initialMedToEdit: Map<String, dynamic>.from(m as Map),
-                                                    ),
-                                              ),
-                                            );
-                                            _fetchData();
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: Colors.red,
-                                            size: 20,
-                                          ),
-                                          tooltip: 'Eliminar',
-                                          onPressed: () async {
-                                            final confirm = await showDialog<bool>(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text(
-                                                  'Eliminar Medicação',
+                                        if (widget.userData['tipo'] != 'cuidadora' || m['criado_por'] == widget.userData['id'])
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit,
+                                              color: Colors.blue,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Editar',
+                                            onPressed: () async {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ManageMedicacoesPage(
+                                                        idosoData: idoso,
+                                                        userData: widget.userData,
+                                                        initialMedToEdit: Map<String, dynamic>.from(m as Map),
+                                                      ),
                                                 ),
-                                                content: Text(
-                                                  'Tem a certeza que deseja eliminar ${m['nome']}?',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          false,
-                                                        ),
-                                                    child: const Text(
-                                                      'Cancelar',
-                                                    ),
+                                              );
+                                              _fetchData();
+                                            },
+                                          ),
+                                        if (widget.userData['tipo'] != 'cuidadora' || m['criado_por'] == widget.userData['id'])
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.delete_outline,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                            tooltip: 'Eliminar',
+                                            onPressed: () async {
+                                              final confirm = await showDialog<bool>(
+                                                context: context,
+                                                builder: (context) => AlertDialog(
+                                                  title: const Text(
+                                                    'Eliminar Medicação',
                                                   ),
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          context,
-                                                          true,
-                                                        ),
-                                                    child: const Text(
-                                                      'Eliminar',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
+                                                  content: Text(
+                                                    'Tem a certeza que deseja eliminar ${m['nome']}?',
+                                                  ),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                            false,
+                                                          ),
+                                                      child: const Text(
+                                                        'Cancelar',
                                                       ),
                                                     ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                            if (confirm == true) {
-                                              try {
-                                                await _supabase
-                                                    .from('medicacoes')
-                                                    .delete()
-                                                    .eq('id', m['id']);
-                                                _fetchData();
-                                              } catch (e) {
-                                                if (mounted)
-                                                  ScaffoldMessenger.of(
-                                                    context,
-                                                  ).showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                        'Erro ao eliminar: $e',
+                                                    TextButton(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            context,
+                                                            true,
+                                                          ),
+                                                      child: const Text(
+                                                        'Eliminar',
+                                                        style: TextStyle(
+                                                          color: Colors.red,
+                                                        ),
                                                       ),
                                                     ),
-                                                  );
+                                                  ],
+                                                ),
+                                              );
+                                              if (confirm == true) {
+                                                try {
+                                                  if (widget.userData['tipo'] == 'cuidadora') {
+                                                    await logCuidadoraAction(
+                                                      acao: 'eliminar',
+                                                      entidade: 'medicamento',
+                                                      entidadeId: m['id'],
+                                                      familiaId: idoso['familia_id'],
+                                                      detalhes: m['nome'] ?? 'Sem Nome',
+                                                      cuidadoraId: widget.userData['id'],
+                                                    );
+                                                  }
+                                                  await _supabase
+                                                      .from('medicacoes')
+                                                      .delete()
+                                                      .eq('id', m['id']);
+                                                  _fetchData();
+                                                } catch (e) {
+                                                  if (mounted)
+                                                    ScaffoldMessenger.of(
+                                                      context,
+                                                    ).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                          'Erro ao eliminar: $e',
+                                                        ),
+                                                      ),
+                                                    );
+                                                }
                                               }
-                                            }
-                                          },
-                                        ),
+                                            },
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -1206,7 +1292,13 @@ class _MedicamentosPageState extends State<MedicamentosPage>
 class ManageMedicacoesPage extends StatefulWidget {
   final Map<String, dynamic> idosoData;
   final Map<String, dynamic>? initialMedToEdit;
-  const ManageMedicacoesPage({super.key, required this.idosoData, this.initialMedToEdit});
+  final Map<String, dynamic> userData;
+  const ManageMedicacoesPage({
+    super.key,
+    required this.idosoData,
+    required this.userData,
+    this.initialMedToEdit,
+  });
 
   @override
   State<ManageMedicacoesPage> createState() => _ManageMedicacoesPageState();
@@ -1548,6 +1640,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
 
                 final stockValue = int.tryParse(stockController.text) ?? 0;
                 final regularidadeStr = _selectedTipo == 'normal' ? selectedRegularidades.join(', ') : 'em caso de emergência';
+                final isCuidadora = widget.userData['tipo'] == 'cuidadora';
                 final data = {
                   'idoso_id': widget.idosoData['id'],
                   'nome': nomeController.text.trim(),
@@ -1556,15 +1649,36 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   'observacoes': obsController.text,
                   'tipo': _selectedTipo,
                   'instrucoes_sos': _selectedTipo == 'sos' ? instrucoesSosController.text : null,
+                  if (med == null) 'criado_por': widget.userData['id'],
                 };
                 try {
                   if (med == null) {
-                    await _supabase.from('medicacoes').insert(data);
+                    final response = await _supabase.from('medicacoes').insert(data).select().single();
+                    if (isCuidadora) {
+                      await logCuidadoraAction(
+                        acao: 'criar',
+                        entidade: 'medicamento',
+                        entidadeId: response['id'],
+                        familiaId: widget.idosoData['familia_id'],
+                        detalhes: '${data['nome']} - ${data['quantidade']}',
+                        cuidadoraId: widget.userData['id'],
+                      );
+                    }
                   } else {
                     await _supabase
                         .from('medicacoes')
                         .update(data)
                         .eq('id', med['id']);
+                    if (isCuidadora) {
+                      await logCuidadoraAction(
+                        acao: 'editar',
+                        entidade: 'medicamento',
+                        entidadeId: med['id'],
+                        familiaId: widget.idosoData['familia_id'],
+                        detalhes: '${data['nome']} - ${data['quantidade']}',
+                        cuidadoraId: widget.userData['id'],
+                      );
+                    }
                   }
 
                   // Atualizar stock na tabela centralizada (upsert)
@@ -1683,48 +1797,63 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                           ),
                       ],
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          onPressed: () => _addOrEditMed(med),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Eliminar'),
-                                content: const Text(
-                                  'Deseja eliminar este medicamento?',
+                    trailing: () {
+                      final isCuidadora = widget.userData['tipo'] == 'cuidadora';
+                      final canModify = !isCuidadora || (med['criado_por'] == widget.userData['id']);
+                      if (!canModify) return const SizedBox.shrink();
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
+                            onPressed: () => _addOrEditMed(med),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Eliminar'),
+                                  content: const Text(
+                                    'Deseja eliminar este medicamento?',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, false),
+                                      child: const Text('Não'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(context, true),
+                                      child: const Text('Sim'),
+                                    ),
+                                  ],
                                 ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Não'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: const Text('Sim'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              await _supabase
-                                  .from('medicacoes')
-                                  .delete()
-                                  .eq('id', med['id']);
-                              _fetchMedicacoes();
-                            }
-                          },
-                        ),
-                      ],
-                    ),
+                              );
+                              if (confirm == true) {
+                                if (isCuidadora) {
+                                  await logCuidadoraAction(
+                                    acao: 'eliminar',
+                                    entidade: 'medicamento',
+                                    entidadeId: med['id'],
+                                    familiaId: widget.idosoData['familia_id'],
+                                    detalhes: med['nome'] ?? 'Sem Nome',
+                                    cuidadoraId: widget.userData['id'],
+                                  );
+                                }
+                                await _supabase
+                                    .from('medicacoes')
+                                    .delete()
+                                    .eq('id', med['id']);
+                                _fetchMedicacoes();
+                              }
+                            },
+                          ),
+                        ],
+                      );
+                    }(),
                   ),
                 );
               },
