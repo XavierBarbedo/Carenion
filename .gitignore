@@ -48,3 +48,6 @@ app.*.map.json
 .env
 *.txt
 *.log
+
+# Database migrations (sensitive SQL)
+db_migration.sql
