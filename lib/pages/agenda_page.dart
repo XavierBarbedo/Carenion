@@ -92,7 +92,7 @@ class _AgendaPageState extends State<AgendaPage> {
       // 3. Buscamos eventos apenas para esses idosos (SEM joins SQL para evitar ambiguidade)
       final response = await _supabase
           .from('eventos')
-          .select('*, users(nome, tipo)')
+          .select('*, users(nome, tipo, foto_url)')
           .inFilter('idoso_id', idososMap.keys.toList())
           .order('data_inicio');
 
@@ -358,16 +358,33 @@ class _AgendaPageState extends State<AgendaPage> {
                     ),
                   ),
                   Text('Tipo: ${event['tipo'] ?? 'Outro'}'),
-                  if (event['users'] != null && event['users']['tipo'] == 'cuidadora')
+                  if (event['users'] != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        'Criado por Cuidador(a): ${event['users']['nome'] ?? 'Desconhecido'}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.blueGrey,
-                        ),
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 10,
+                            backgroundImage: getAvatarProvider(event['users']['foto_url']),
+                            backgroundColor: Colors.amber.withOpacity(0.2),
+                            child: (event['users']['foto_url'] == null || event['users']['foto_url'].toString().isEmpty)
+                                ? const Icon(Icons.person, size: 10, color: Colors.amber)
+                                : null,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              event['users']['tipo'] == 'cuidadora'
+                                  ? 'Criado por Cuidador(a): ${event['users']['nome'] ?? 'Desconhecido'}'
+                                  : 'Criado por: ${event['users']['nome'] ?? 'Desconhecido'}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.blueGrey,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                 ],
@@ -455,11 +472,12 @@ class _AgendaPageState extends State<AgendaPage> {
                   '${event['idoso_nome']} (${event['familia_nome']})',
                   fotoUrl: event['foto_url'],
                 ),
-                if (event['users'] != null && event['users']['tipo'] == 'cuidadora')
+                if (event['users'] != null)
                   _detailRow(
                     Icons.assignment_ind,
                     'Criado por',
-                    '${event['users']['nome'] ?? 'Cuidador(a)'} (Cuidador(a))',
+                    '${event['users']['nome'] ?? 'Utilizador'} (${event['users']['tipo'] == 'cuidadora' ? 'Cuidador(a)' : 'Administrador'})',
+                    fotoUrl: event['users']['foto_url'],
                   ),
                 if (loc.isNotEmpty)
                   _detailRow(Icons.location_on, 'Localização', loc),

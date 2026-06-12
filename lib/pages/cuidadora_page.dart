@@ -1,7 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../utils.dart';
 
 class CuidadoraPage extends StatefulWidget {
@@ -58,10 +61,9 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
         
         _cuidadoras = fcRes;
 
-        // 3. Fetch logs for these families
         final logsRes = await _supabase
             .from('cuidadora_logs')
-            .select('*, users(nome, email), familias(nome)')
+            .select('*, users(nome, email, foto_url), familias(nome)')
             .inFilter('familia_id', famIds)
             .order('criado_em', ascending: false);
         
@@ -155,6 +157,8 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
     int? selectedFamiliaId = _familias.first['id'];
     bool isSaving = false;
     bool isObscure = true;
+    final ImagePicker picker = ImagePicker();
+    List<int>? fotoBytes;
 
     showDialog(
       context: context,
@@ -170,6 +174,31 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                GestureDetector(
+                  onTap: () async {
+                    final pickedFile = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 512,
+                      maxHeight: 512,
+                      imageQuality: 75,
+                    );
+                    if (pickedFile != null) {
+                      final bytes = await pickedFile.readAsBytes();
+                      setDialogState(() {
+                        fotoBytes = bytes;
+                      });
+                    }
+                  },
+                  child: CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    backgroundImage: fotoBytes != null ? MemoryImage(Uint8List.fromList(fotoBytes!)) : null,
+                    child: fotoBytes == null
+                        ? const Icon(Icons.add_a_photo, size: 25, color: Colors.amber)
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextField(
                   controller: nomeController,
                   decoration: InputDecoration(
@@ -318,11 +347,16 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
 
                         // 3. Use RPC (SECURITY DEFINER) to insert into users + familia_cuidadores
                         // This runs with elevated privileges, bypassing RLS
+                        String? fotoUrl;
+                        if (fotoBytes != null) {
+                          fotoUrl = 'data:image/jpeg;base64,${base64Encode(fotoBytes!)}';
+                        }
                         await _supabase.rpc('register_cuidadora', params: {
                           'p_user_id': newUserId,
                           'p_nome': nome,
                           'p_email': email,
                           'p_familia_id': selectedFamiliaId,
+                          'p_foto_url': fotoUrl,
                         });
 
                         if (mounted) {
@@ -476,10 +510,15 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
           margin: const EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.amber.withOpacity(0.2),
-              child: const Icon(Icons.person, color: Colors.amber),
-            ),
+            leading: user['foto_url'] != null && user['foto_url'].toString().isNotEmpty
+                ? CircleAvatar(
+                    backgroundImage: getAvatarProvider(user['foto_url']),
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                  )
+                : CircleAvatar(
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    child: const Icon(Icons.person, color: Colors.amber),
+                  ),
             title: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Text(
@@ -590,10 +629,31 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor: color.withOpacity(0.1),
-                  radius: 18,
-                  child: Icon(icon, color: color, size: 18),
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundImage: getAvatarProvider(user != null ? user['foto_url'] : null),
+                      backgroundColor: color.withOpacity(0.1),
+                      child: user == null || user['foto_url'] == null || user['foto_url'].toString().isEmpty
+                          ? Icon(icon, color: color, size: 18)
+                          : null,
+                    ),
+                    if (user != null && user['foto_url'] != null && user['foto_url'].toString().isNotEmpty)
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).cardColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: color, width: 1),
+                          ),
+                          child: Icon(icon, color: color, size: 10),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 Expanded(

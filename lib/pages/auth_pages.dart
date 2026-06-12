@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../utils.dart';
 import 'home_page.dart';
 
@@ -577,15 +580,28 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
+  final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   bool _isPasswordObscure = true;
   bool _isConfirmPasswordObscure = true;
+  final ImagePicker _picker = ImagePicker();
+  List<int>? _fotoBytes;
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _signUp() async {
-    if (_emailController.text.isEmpty ||
+    if (_nomeController.text.trim().isEmpty ||
+        _emailController.text.isEmpty ||
         _passwordController.text.isEmpty ||
         _confirmPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -615,11 +631,17 @@ class _SignUpPageState extends State<SignUpPage> {
       );
 
       if (authRes.user != null) {
+        String? fotoUrl;
+        if (_fotoBytes != null) {
+          fotoUrl = 'data:image/jpeg;base64,${base64Encode(_fotoBytes!)}';
+        }
         // Inserir novo utilizador na tabela users com id = auth.uid()
         await supabase.from('users').insert({
           'id': authRes.user!.id,
+          'nome': _nomeController.text.trim(),
           'email': _emailController.text,
           'tipo': 'cuidador', // Default como pedido
+          'foto_url': fotoUrl,
           'created_at': DateTime.now().toIso8601String(),
         });
       }
@@ -663,7 +685,46 @@ class _SignUpPageState extends State<SignUpPage> {
         padding: const EdgeInsets.all(30),
         child: Column(
           children: [
-            const SizedBox(height: 40),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: () async {
+                final pickedFile = await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  maxWidth: 512,
+                  maxHeight: 512,
+                  imageQuality: 75,
+                );
+                if (pickedFile != null) {
+                  final bytes = await pickedFile.readAsBytes();
+                  setState(() {
+                    _fotoBytes = bytes;
+                  });
+                }
+              },
+              child: CircleAvatar(
+                radius: 45,
+                backgroundColor: Colors.amber.withOpacity(0.2),
+                backgroundImage: _fotoBytes != null ? MemoryImage(Uint8List.fromList(_fotoBytes!)) : null,
+                child: _fotoBytes == null
+                    ? const Icon(Icons.add_a_photo, size: 30, color: Colors.amber)
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _nomeController,
+              decoration: InputDecoration(
+                label: buildRequiredLabel('Nome Completo'),
+                prefixIcon: const Icon(Icons.person_outline),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: _emailController,
               decoration: InputDecoration(

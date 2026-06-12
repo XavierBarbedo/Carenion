@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/settings_service.dart';
 import '../utils.dart';
 import 'auth_pages.dart';
@@ -79,6 +81,9 @@ class _SettingsPageState extends State<SettingsPage> {
               _buildLowStockField(),
               const Divider(height: 32),
               _buildSectionHeader('Conta', Icons.person),
+              _buildProfileCard(),
+              const SizedBox(height: 12),
+              _buildChangeNameTile(),
               _buildChangeEmailTile(),
               _buildChangePasswordTile(),
               _buildSignOutTile(),
@@ -221,6 +226,112 @@ class _SettingsPageState extends State<SettingsPage> {
         style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
       ),
       onTap: _deleteAccount,
+    );
+  }
+
+  Widget _buildChangeNameTile() {
+    final currentName = widget.userData['nome'] ?? '';
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.badge_outlined, color: Colors.amber),
+      title: const Text(
+        'Mudar Nome',
+        style: TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: currentName.isNotEmpty ? Text(currentName, style: const TextStyle(fontSize: 13)) : null,
+      trailing: const Icon(Icons.chevron_right),
+      onTap: _showChangeNameDialog,
+    );
+  }
+
+  Future<void> _showChangeNameDialog() async {
+    final nomeController = TextEditingController(
+      text: widget.userData['nome'] ?? '',
+    );
+    bool isLoading = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text(
+            'Mudar Nome',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: TextField(
+            controller: nomeController,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(
+              label: buildRequiredLabel('Nome Completo'),
+              prefixIcon: const Icon(Icons.person_outline),
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      final novoNome = nomeController.text.trim();
+                      if (novoNome.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('O nome não pode estar vazio.')),
+                        );
+                        return;
+                      }
+                      setDialogState(() => isLoading = true);
+                      try {
+                        final supabase = Supabase.instance.client;
+                        final userId = widget.userData['id'];
+                        await supabase
+                            .from('users')
+                            .update({'nome': novoNome})
+                            .eq('id', userId);
+                        if (mounted) {
+                          setState(() {
+                            widget.userData['nome'] = novoNome;
+                          });
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Nome atualizado com sucesso!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Erro ao atualizar: ${translateSupabaseError(e)}'),
+                            ),
+                          );
+                        }
+                      } finally {
+                        setDialogState(() => isLoading = false);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Confirmar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -669,5 +780,150 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  Widget _buildProfileCard() {
+    final String nome = widget.userData['nome'] ?? widget.userData['email'] ?? 'Utilizador';
+    final String email = widget.userData['email'] ?? '';
+    final String tipo = widget.userData['tipo'] == 'cuidadora' ? 'Cuidador(a)' : 'Administrador';
+    final String? fotoUrl = widget.userData['foto_url'];
+
+    return Card(
+      elevation: 0,
+      color: Colors.amber.withOpacity(0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.amber.withOpacity(0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: _pickProfileImage,
+              child: Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: Colors.amber.withOpacity(0.2),
+                    backgroundImage: getAvatarProvider(fotoUrl),
+                    child: fotoUrl == null || fotoUrl.isEmpty
+                        ? const Icon(Icons.person, size: 40, color: Colors.amber)
+                        : null,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.amber,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(6),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      nome,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Text(
+                      email,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      tipo,
+                      style: const TextStyle(
+                        color: Colors.amber,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickProfileImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        final base64PhotoUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+        final supabase = Supabase.instance.client;
+        await supabase.from('users').update({
+          'foto_url': base64PhotoUrl,
+        }).eq('id', widget.userData['id']);
+
+        setState(() {
+          widget.userData['foto_url'] = base64PhotoUrl;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Foto de perfil atualizada com sucesso!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao atualizar foto: ${translateSupabaseError(e)}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
