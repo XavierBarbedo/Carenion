@@ -574,144 +574,206 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
       );
     }
 
+    // Group logs by caregiver user id
+    final Map<String, List<dynamic>> groupedLogs = {};
+    final Map<String, dynamic> caregiverInfo = {};
+
+    for (final log in _logs) {
+      final user = log['users'];
+      final String caregiverId = (log['cuidadora_id'] ?? 'unknown').toString();
+      groupedLogs.putIfAbsent(caregiverId, () => []).add(log);
+      caregiverInfo.putIfAbsent(caregiverId, () => user);
+    }
+
+    final caregiverIds = groupedLogs.keys.toList();
+
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _logs.length,
-      itemBuilder: (context, index) {
-        final log = _logs[index];
-        final String action = log['acao'] ?? '';
-        final String entity = log['entidade'] ?? '';
-        final String details = log['detalhes'] ?? '';
-        final String criadoEm = log['criado_em'] ?? '';
-        
-        final user = log['users'];
-        final String userName = user != null ? (user['nome'] ?? user['email'] ?? 'Cuidador(a)') : 'Cuidador(a)';
-
-        final family = log['familias'];
-        final String familyName = family != null ? (family['nome'] ?? 'Família') : 'Família';
-
-        DateTime? parsedTime = DateTime.tryParse(criadoEm);
-        String timeStr = parsedTime != null 
-            ? DateFormat('dd/MM/yyyy HH:mm').format(parsedTime) 
-            : criadoEm;
-
-        IconData icon;
-        Color color;
-        String actionVerb;
-
-        switch (action.toLowerCase()) {
-          case 'criar':
-            icon = Icons.add_circle_outline;
-            color = Colors.green;
-            actionVerb = 'criou';
-            break;
-          case 'editar':
-            icon = Icons.edit_outlined;
-            color = Colors.blue;
-            actionVerb = 'editou';
-            break;
-          case 'eliminar':
-            icon = Icons.delete_outline;
-            color = Colors.redAccent;
-            actionVerb = 'eliminou';
-            break;
-          default:
-            icon = Icons.info_outline;
-            color = Colors.grey;
-            actionVerb = 'realizou ação em';
-        }
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      itemCount: caregiverIds.length,
+      itemBuilder: (context, groupIndex) {
+        final caregiverId = caregiverIds[groupIndex];
+        final logs = groupedLogs[caregiverId]!;
+        final user = caregiverInfo[caregiverId];
+        final String caregiverName = user != null
+            ? (user['nome'] ?? user['email'] ?? 'Cuidador(a)')
+            : 'Cuidador(a)';
+        final String? fotoUrl = user != null ? user['foto_url'] : null;
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
+          elevation: 3,
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+          child: ExpansionTile(
+            initiallyExpanded: true,
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            childrenPadding: EdgeInsets.zero,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            leading: fotoUrl != null && fotoUrl.isNotEmpty
+                ? CircleAvatar(
+                    radius: 22,
+                    backgroundImage: getAvatarProvider(fotoUrl),
+                    backgroundColor: Colors.amber.withOpacity(0.15),
+                  )
+                : CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.amber.withOpacity(0.15),
+                    child: const Icon(Icons.person, color: Colors.amber, size: 22),
+                  ),
+            title: Text(
+              caregiverName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            subtitle: Text(
+              '${logs.length} ${logs.length == 1 ? 'atividade' : 'atividades'}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.amber.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${logs.length}',
+                style: const TextStyle(
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            children: [
+              const Divider(height: 1, thickness: 1),
+              ...logs.map((log) => _buildLogEntry(log)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildLogEntry(Map<String, dynamic> log) {
+    final String action = log['acao'] ?? '';
+    final String entity = log['entidade'] ?? '';
+    final String details = log['detalhes'] ?? '';
+    final String criadoEm = log['criado_em'] ?? '';
+
+    final family = log['familias'];
+    final String familyName = family != null ? (family['nome'] ?? 'Família') : 'Família';
+
+    DateTime? parsedTime = DateTime.tryParse(criadoEm);
+    String timeStr = parsedTime != null
+        ? DateFormat('dd/MM/yyyy HH:mm').format(parsedTime)
+        : criadoEm;
+
+    IconData icon;
+    Color color;
+    String actionVerb;
+
+    switch (action.toLowerCase()) {
+      case 'criar':
+        icon = Icons.add_circle_outline;
+        color = Colors.green;
+        actionVerb = 'Criou';
+        break;
+      case 'editar':
+        icon = Icons.edit_outlined;
+        color = Colors.blue;
+        actionVerb = 'Editou';
+        break;
+      case 'eliminar':
+        icon = Icons.delete_outline;
+        color = Colors.redAccent;
+        actionVerb = 'Eliminou';
+        break;
+      default:
+        icon = Icons.info_outline;
+        color = Colors.grey;
+        actionVerb = 'Ação em';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).dividerColor.withOpacity(0.4),
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundImage: getAvatarProvider(user != null ? user['foto_url'] : null),
-                      backgroundColor: color.withOpacity(0.1),
-                      child: user == null || user['foto_url'] == null || user['foto_url'].toString().isEmpty
-                          ? Icon(icon, color: color, size: 18)
-                          : null,
+                RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black87,
+                      fontSize: 13.5,
                     ),
-                    if (user != null && user['foto_url'] != null && user['foto_url'].toString().isNotEmpty)
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: color, width: 1),
-                          ),
-                          child: Icon(icon, color: color, size: 10),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      RichText(
-                        text: TextSpan(
-                          style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.white 
-                                : Colors.black87,
-                            fontSize: 14,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: userName,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: ' $actionVerb o/a '),
-                            TextSpan(
-                              text: entity,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const TextSpan(text: ' na '),
-                            TextSpan(
-                              text: familyName,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
+                      TextSpan(
+                        text: '$actionVerb ',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: color),
                       ),
-                      const SizedBox(height: 6),
-                      if (details.isNotEmpty) ...[
-                        Text(
-                          details,
-                          style: TextStyle(
-                            color: Theme.of(context).brightness == Brightness.dark 
-                                ? Colors.white70 
-                                : Colors.black54,
-                            fontSize: 13,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                      ],
-                      Text(
-                        timeStr,
-                        style: const TextStyle(color: Colors.grey, fontSize: 11),
+                      TextSpan(
+                        text: entity,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ' na família '),
+                      TextSpan(
+                        text: familyName,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                 ),
+                if (details.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    details,
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white60
+                          : Colors.black54,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 11, color: Colors.grey),
+                    const SizedBox(width: 3),
+                    Text(
+                      timeStr,
+                      style: const TextStyle(color: Colors.grey, fontSize: 11),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
