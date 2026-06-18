@@ -103,20 +103,22 @@ class _SettingsPageState extends State<SettingsPage> {
           'Apagar Conta',
           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
         ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Atenção: Esta ação é irreversível.',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Todos os seus dados, incluindo famílias, idosos e medicação associada, serão permanentemente eliminados.',
-            ),
-            SizedBox(height: 12),
-            Text('Deseja mesmo apagar a sua conta?'),
-          ],
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Atenção: Esta ação é irreversível.',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Todos os seus dados, incluindo famílias, idosos e medicação associada, serão permanentemente eliminados.',
+              ),
+              SizedBox(height: 12),
+              Text('Deseja mesmo apagar a sua conta?'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -260,13 +262,15 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: TextField(
-            controller: nomeController,
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              label: buildRequiredLabel('Nome Completo'),
-              prefixIcon: const Icon(Icons.person_outline),
-              border: const OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: TextField(
+              controller: nomeController,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                label: buildRequiredLabel('Nome Completo'),
+                prefixIcon: const Icon(Icons.person_outline),
+                border: const OutlineInputBorder(),
+              ),
             ),
           ),
           actions: [

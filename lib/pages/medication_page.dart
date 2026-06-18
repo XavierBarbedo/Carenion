@@ -471,20 +471,22 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Toma de Medicação SOS'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Irá registar a toma de ${med['nome']} para ${med['idoso_nome']}.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: quantityController,
-              decoration: InputDecoration(
-                label: buildRequiredLabel('Quantidade Tomada'),
-                prefixIcon: const Icon(Icons.science),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Irá registar a toma de ${med['nome']} para ${med['idoso_nome']}.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: quantityController,
+                decoration: InputDecoration(
+                  label: buildRequiredLabel('Quantidade Tomada'),
+                  prefixIcon: const Icon(Icons.science),
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1721,7 +1723,7 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             Image.asset(
               'images/carenion_Icon-removebg-preview.png',

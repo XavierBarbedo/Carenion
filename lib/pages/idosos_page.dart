@@ -843,7 +843,7 @@ class IdosoDetailsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             Image.asset(
               'images/carenion_Icon-removebg-preview.png',

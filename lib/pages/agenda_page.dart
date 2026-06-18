@@ -440,12 +440,13 @@ class _AgendaPageState extends State<AgendaPage> {
         final desc = event['descricao']?.toString().trim() ?? '';
 
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Text(
@@ -509,7 +510,8 @@ class _AgendaPageState extends State<AgendaPage> {
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }

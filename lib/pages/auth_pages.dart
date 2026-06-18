@@ -166,27 +166,29 @@ class _LoginPageState extends State<LoginPage> {
             'Recuperar Password',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Introduza o seu email para receber um link de recuperação da password.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  label: buildRequiredLabel('Email'),
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Introduza o seu email para receber um link de recuperação da password.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Email'),
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -290,50 +292,52 @@ class _LoginPageState extends State<LoginPage> {
             'Definir Nova Password',
             style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Por favor, introduza e confirme a sua nova password.',
-                style: TextStyle(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: newPasswordController,
-                obscureText: isNewObscure,
-                decoration: InputDecoration(
-                  label: buildRequiredLabel('Nova Password'),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      isNewObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Por favor, introduza e confirme a sua nova password.',
+                  style: TextStyle(fontSize: 14),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: newPasswordController,
+                  obscureText: isNewObscure,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Nova Password'),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isNewObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () => setDialogState(() => isNewObscure = !isNewObscure),
                     ),
-                    onPressed: () => setDialogState(() => isNewObscure = !isNewObscure),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: confirmPasswordController,
-                obscureText: isConfirmObscure,
-                decoration: InputDecoration(
-                  label: buildRequiredLabel('Confirmar Nova Password'),
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      isConfirmObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: isConfirmObscure,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Confirmar Nova Password'),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        isConfirmObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () => setDialogState(() => isConfirmObscure = !isConfirmObscure),
                     ),
-                    onPressed: () => setDialogState(() => isConfirmObscure = !isConfirmObscure),
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
