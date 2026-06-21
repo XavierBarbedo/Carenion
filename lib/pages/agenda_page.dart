@@ -10,6 +10,7 @@ import 'dart:convert';
 import '../main.dart';
 import '../services/notification_service.dart';
 import '../utils.dart';
+import '../services/cache_service.dart';
 
 class AgendaPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -33,15 +34,23 @@ class _AgendaPageState extends State<AgendaPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
+    final cacheKey = 'agenda_${widget.userData['id']}';
+    if (cacheService.has(cacheKey)) {
+      _events = Map<DateTime, List<dynamic>>.from(cacheService.get(cacheKey));
+      _isLoading = false;
+    }
     _fetchEvents();
   }
 
   Future<void> _fetchEvents() async {
-    setState(() => _isLoading = true);
+    final cacheKey = 'agenda_${widget.userData['id']}';
+    if (!cacheService.has(cacheKey)) {
+      setState(() => _isLoading = true);
+    }
     try {
       final userId = widget.userData['id'];
 
-      // 1. Primeiro buscamos as famílias do utilizador
+      // 1. Busca as famílias e os seus idosos aninhados numa única chamada de rede
       debugPrint('[DEBUG] Agenda: Buscando famílias para userId: $userId');
       final List<dynamic> familiasUserRes;
       if (widget.userData['tipo'] == 'cuidadora') {
@@ -53,7 +62,7 @@ class _AgendaPageState extends State<AgendaPage> {
         if (familiaIds.isNotEmpty) {
           familiasUserRes = await _supabase
               .from('familias')
-              .select('id, nome')
+              .select('id, nome, idosos:idosos!fk_idoso_familia(id, nome, familia_id, foto_url)')
               .inFilter('id', familiaIds);
         } else {
           familiasUserRes = [];
@@ -61,7 +70,7 @@ class _AgendaPageState extends State<AgendaPage> {
       } else {
         familiasUserRes = await _supabase
             .from('familias')
-            .select('id, nome')
+            .select('id, nome, idosos:idosos!fk_idoso_familia(id, nome, familia_id, foto_url)')
             .eq('user_id', userId);
       }
       
@@ -74,11 +83,13 @@ class _AgendaPageState extends State<AgendaPage> {
         return;
       }
 
-      // 2. Buscamos os idosos destas famílias
-      final idososFiltradosRes = await _supabase
-          .from('idosos')
-          .select('id, nome, familia_id, foto_url')
-          .inFilter('familia_id', familiasMap.keys.toList());
+      // Extrair todos os idosos aninhados
+      final List<dynamic> idososFiltradosRes = [];
+      for (var f in familiasUserRes) {
+        if (f['idosos'] != null) {
+          idososFiltradosRes.addAll(f['idosos']);
+        }
+      }
       
       final idososMap = {for (var i in idososFiltradosRes) i['id']: i};
 
@@ -119,9 +130,12 @@ class _AgendaPageState extends State<AgendaPage> {
         });
       }
 
-      setState(() {
-        _events = newEvents;
-      });
+      cacheService.set(cacheKey, newEvents);
+      if (mounted) {
+        setState(() {
+          _events = newEvents;
+        });
+      }
     } catch (e) {
       debugPrint('Erro ao carregar eventos: $e');
     } finally {

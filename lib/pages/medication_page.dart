@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../utils.dart';
 import '../main.dart';
 import '../services/notification_service.dart';
+import '../services/cache_service.dart';
 
 class MedicamentosPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -27,16 +28,27 @@ class _MedicamentosPageState extends State<MedicamentosPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this, initialIndex: 0);
+    final cacheKey = 'medication_${widget.userData['id']}';
+    if (cacheService.has(cacheKey)) {
+      final cached = cacheService.get(cacheKey) as Map<String, dynamic>;
+      _stockFamilia = cached['stockFamilia'];
+      _medsSos = cached['medsSos'];
+      _tomasSemana = cached['tomasSemana'];
+      _isLoading = false;
+    }
     _fetchData();
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    final cacheKey = 'medication_${widget.userData['id']}';
+    if (!cacheService.has(cacheKey)) {
+      setState(() => _isLoading = true);
+    }
     try {
       final userId = widget.userData['id'];
 
-      // 1. Busca as famílias
-      debugPrint('[DEBUG] Medicação: Buscando famílias para userId: $userId');
+      // 1. Busca as famílias com os seus idosos e medicações aninhados numa única chamada
+      debugPrint('[DEBUG] Medicação: Buscando famílias, idosos e medicações para userId: $userId');
       final List<dynamic> familiasRes;
       if (widget.userData['tipo'] == 'cuidadora') {
         final fcResponse = await _supabase
@@ -47,7 +59,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         if (familiaIds.isNotEmpty) {
           familiasRes = await _supabase
               .from('familias')
-              .select()
+              .select('*, idosos:idosos!fk_idoso_familia(*, medicacoes!fk_medicacao_idoso(*))')
               .inFilter('id', familiaIds)
               .order('nome');
         } else {
@@ -56,164 +68,85 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       } else {
         familiasRes = await _supabase
             .from('familias')
-            .select()
+            .select('*, idosos:idosos!fk_idoso_familia(*, medicacoes!fk_medicacao_idoso(*))')
             .eq('user_id', userId)
             .order('nome');
       }
-      
-      debugPrint('[DEBUG] Medicação: Encontradas ${familiasRes.length} famílias');
-      
+
       final familias = List<Map<String, dynamic>>.from(familiasRes);
 
-      if (familias.isNotEmpty) {
-        final familiaIds = familias.map((f) => f['id']).toList();
-
-        // 2. Busca idosos destas famílias com as suas medicações
-        final idososRes = await _supabase
-            .from('idosos')
-            .select('*, medicacoes!fk_medicacao_idoso(*)')
-            .inFilter('familia_id', familiaIds)
-            .order('nome');
-
-        final idosos = List<Map<String, dynamic>>.from(idososRes);
-
-        // 2.1 Buscar stock centralizado da tabela stock_familia
-        final stockFamiliaRes = await _supabase
-            .from('stock_familia')
-            .select()
-            .inFilter('familia_id', familiaIds);
-        final Map<String, int> centralStockMap = {};
-        for (var s in stockFamiliaRes) {
-          final key = '${s['familia_id']}_${s['nome_medicamento']}';
-          centralStockMap[key] = s['stock_atual'] ?? 0;
-        }
-
-        // Enriquecer medicações de cada idoso com stock centralizado
-        for (var idoso in idosos) {
-          final meds = idoso['medicacoes'] as List? ?? [];
-          final familiaId = idoso['familia_id'];
-          idoso['medicacoes'] = meds.map((m) {
-            final stockKey = '${familiaId}_${m['nome'].toString().toLowerCase()}';
-            return {
-              ...m,
-              'stock_atual': centralStockMap[stockKey] ?? 0,
-            };
-          }).toList();
-        }
-
+      if (familias.isEmpty) {
         setState(() {
-          _stockFamilia = familias.map((f) {
-            f['idosos'] = idosos
-                .where((i) => i['familia_id'] == f['id'])
-                .toList();
-            return f;
-          }).toList();
+          _stockFamilia = [];
+          _tomasSemana = [];
+          _medsSos = [];
         });
-      } else {
-        setState(() => _stockFamilia = []);
-      }
-
-      _fetchTomasSemana();
-    } catch (e) {
-      debugPrint('Erro ao carregar dados de medicação: $e');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _fetchTomasSemana() async {
-    try {
-      final userId = widget.userData['id'];
-      final now = DateTime.now();
-      final todayStr = now.toIso8601String().substring(0, 10);
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-
-      // 1. Primeiro buscamos as famílias
-      final List<dynamic> familiasUserRes;
-      if (widget.userData['tipo'] == 'cuidadora') {
-        final fcResponse = await _supabase
-            .from('familia_cuidadores')
-            .select('familia_id')
-            .eq('cuidadora_id', userId);
-        final familiaIds = (fcResponse as List).map((fc) => fc['familia_id'] as int).toList();
-        if (familiaIds.isNotEmpty) {
-          familiasUserRes = await _supabase
-              .from('familias')
-              .select('id, nome, foto_url')
-              .inFilter('id', familiaIds);
-        } else {
-          familiasUserRes = [];
-        }
-      } else {
-        familiasUserRes = await _supabase
-            .from('familias')
-            .select('id, nome, foto_url')
-            .eq('user_id', userId);
-      }
-      
-      final familiasMap = {for (var f in familiasUserRes) f['id']: f['nome']};
-      final familiasFotoMap = {for (var f in familiasUserRes) f['id']: f['foto_url']};
-
-      if (familiasMap.isEmpty) {
-        setState(() => _tomasSemana = []);
         return;
       }
 
-      // 2. Buscamos os idosos destas famílias
-      final idososFiltradosRes = await _supabase
-          .from('idosos')
-          .select('id, nome, familia_id, sexo')
-          .inFilter('familia_id', familiasMap.keys.toList());
-      
-      final idososMap = {for (var i in idososFiltradosRes) i['id']: i};
+      final familiaIds = familias.map((f) => f['id']).toList();
 
-      if (idososMap.isEmpty) {
-        setState(() => _tomasSemana = []);
-        return;
-      }
-
-      // 3. Buscamos medicações apenas para esses idosos (SEM joins SQL para evitar ambiguidade)
-      final medsRes = await _supabase
-          .from('medicacoes')
-          .select()
-          .inFilter('idoso_id', idososMap.keys.toList());
-
-      // 3.1 Buscar stock centralizado da tabela stock_familia
-      final stockRes = await _supabase
+      // 2. Buscar stock centralizado da tabela stock_familia
+      final stockFamiliaRes = await _supabase
           .from('stock_familia')
           .select()
-          .inFilter('familia_id', familiasMap.keys.toList());
-      // Mapa: 'familiaId_nomeMinusculo' -> stock_atual
-      final Map<String, int> stockMap = {};
-      for (var s in stockRes) {
-        final key = '${s['familia_id']}_${s['nome_medicamento']}';
-        stockMap[key] = s['stock_atual'] ?? 0;
+          .inFilter('familia_id', familiaIds);
+
+      final Map<String, int> centralStockMap = {};
+      for (var s in stockFamiliaRes) {
+        final key = '${s['familia_id']}_${s['nome_medicamento'].toString().toLowerCase()}';
+        centralStockMap[key] = s['stock_atual'] ?? 0;
       }
 
-      if (medsRes is List && medsRes.isNotEmpty) {
-        final regularMeds = medsRes.where((m) => m['tipo'] != 'sos').toList();
-        final sosMeds = medsRes.where((m) => m['tipo'] == 'sos').map((m) {
-          final idoso = idososMap[m['idoso_id']];
-          final familiaId = idoso?['familia_id'];
-          final familiaNome = familiaId != null ? familiasMap[familiaId] : 'Sem Família';
-          final stockKey = '${familiaId}_${m['nome'].toString().toLowerCase()}';
-          return {
-            ...m,
-            'familia_nome': familiaNome ?? 'Sem Família',
-            'familia_foto_url': familiaId != null ? familiasFotoMap[familiaId] : null,
-            'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
-            'idoso_sexo': idoso?['sexo'],
-            'stock_atual': stockMap[stockKey] ?? 0,
-            'familia_id': familiaId,
-          };
-        }).toList();
+      // 3. Mapear e enriquecer os dados dos idosos e medicações
+      final List<dynamic> allMeds = [];
 
-        setState(() => _medsSos = sosMeds);
-
-        if (regularMeds.isEmpty) {
-          setState(() => _tomasSemana = []);
-          return;
+      for (var f in familias) {
+        final idosos = f['idosos'] as List? ?? [];
+        for (var idoso in idosos) {
+          final meds = idoso['medicacoes'] as List? ?? [];
+          final enrichedMeds = meds.map((m) {
+            final stockKey = '${f['id']}_${m['nome'].toString().toLowerCase()}';
+            final stockVal = centralStockMap[stockKey] ?? 0;
+            final enriched = {
+              ...m,
+              'stock_atual': stockVal,
+            };
+            allMeds.add({
+              ...enriched,
+              'familia_nome': f['nome'] ?? 'Sem Família',
+              'familia_foto_url': f['foto_url'],
+              'idoso_nome': idoso['nome'] ?? 'Desconhecido',
+              'idoso_sexo': idoso['sexo'],
+              'familia_id': f['id'],
+            });
+            return enriched;
+          }).toList();
+          idoso['medicacoes'] = enrichedMeds;
         }
+      }
+
+      // Configurar stock_familia
+      final tempStockFamilia = familias.map((f) {
+        final idosos = f['idosos'] as List? ?? [];
+        // Ordenar idosos por nome
+        final list = List<Map<String, dynamic>>.from(idosos);
+        list.sort((a, b) => (a['nome'] ?? '').toString().compareTo((b['nome'] ?? '').toString()));
+        f['idosos'] = list;
+        return f;
+      }).toList();
+
+      // Filtrar medicações SOS e Normais
+      final regularMeds = allMeds.where((m) => m['tipo'] != 'sos').toList();
+      final sosMeds = allMeds.where((m) => m['tipo'] == 'sos').toList();
+
+      List<Map<String, dynamic>> tomasProjection = [];
+
+      if (regularMeds.isNotEmpty) {
+        // 4. Buscar as tomas apenas para as medicações regulares da semana atual
+        final now = DateTime.now();
+        final todayStr = now.toIso8601String().substring(0, 10);
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
 
         final tomasRes = await _supabase
             .from('medicacao_tomas')
@@ -228,8 +161,6 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                   .substring(0, 10),
             );
 
-        List<Map<String, dynamic>> projection = [];
-
         // Gerar entradas para cada dia da semana (Segunda a Domingo)
         for (int i = 0; i < 7; i++) {
           final dayDate = startOfWeek.add(Duration(days: i));
@@ -242,20 +173,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
               (t) => t['medicacao_id'] == med['id'] && t['data'] == dayStr,
             );
 
-            // Mapeamento manual de dados relacionais
-            final idoso = idososMap[med['idoso_id']];
-            final familiaId = idoso?['familia_id'];
-            final familiaNome = familiaId != null ? familiasMap[familiaId] : 'Sem Família';
-            final stockKey = '${familiaId}_${med['nome'].toString().toLowerCase()}';
-
-            projection.add({
+            tomasProjection.add({
               ...med,
-              'familia_nome': familiaNome ?? 'Sem Família',
-              'familia_foto_url': familiaId != null ? familiasFotoMap[familiaId] : null,
-              'familia_id': familiaId,
-              'idoso_nome': idoso?['nome'] ?? 'Desconhecido',
-              'idoso_sexo': idoso?['sexo'],
-              'stock_atual': stockMap[stockKey] ?? 0,
               'data_toma': dayStr,
               'is_today': isToday,
               'is_future': isFuture,
@@ -265,18 +184,24 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             });
           }
         }
+      }
 
+      cacheService.set(cacheKey, {
+        'stockFamilia': tempStockFamilia,
+        'medsSos': sosMeds,
+        'tomasSemana': tomasProjection,
+      });
+      if (mounted) {
         setState(() {
-          _tomasSemana = projection;
-        });
-      } else {
-        setState(() {
-          _tomasSemana = [];
-          _medsSos = [];
+          _stockFamilia = tempStockFamilia;
+          _medsSos = sosMeds;
+          _tomasSemana = tomasProjection;
         });
       }
     } catch (e) {
-      debugPrint('Erro ao carregar tomas: $e');
+      debugPrint('Erro ao carregar dados de medicação: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

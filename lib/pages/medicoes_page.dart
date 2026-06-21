@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import '../utils.dart';
+import '../services/cache_service.dart';
 
 class MedicoesPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -20,15 +21,24 @@ class _MedicoesPageState extends State<MedicoesPage> {
   @override
   void initState() {
     super.initState();
+    final cacheKey = 'medicoes_${widget.userData['id']}';
+    if (cacheService.has(cacheKey)) {
+      final cached = cacheService.get(cacheKey) as Map<String, dynamic>;
+      _familias = cached['familias'];
+      _medicoesPorIdoso = Map<int, List<dynamic>>.from(cached['medicoesPorIdoso']);
+      _isLoading = false;
+    }
     _fetchData();
   }
-
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    final cacheKey = 'medicoes_${widget.userData['id']}';
+    if (!cacheService.has(cacheKey)) {
+      setState(() => _isLoading = true);
+    }
     try {
       final userId = widget.userData['id'];
 
-      // 1. Busca famílias do utilizador
+      // 1. Busca famílias do utilizador com idosos e medições aninhados
       final List<dynamic> familiasRes;
       if (widget.userData['tipo'] == 'cuidadora') {
         final fcResponse = await _supabase
@@ -39,7 +49,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
         if (familiaIds.isNotEmpty) {
           familiasRes = await _supabase
               .from('familias')
-              .select()
+              .select('*, idosos:idosos!fk_idoso_familia(*, medicoes(*))')
               .inFilter('id', familiaIds)
               .order('nome');
         } else {
@@ -48,58 +58,41 @@ class _MedicoesPageState extends State<MedicoesPage> {
       } else {
         familiasRes = await _supabase
             .from('familias')
-            .select()
+            .select('*, idosos:idosos!fk_idoso_familia(*, medicoes(*))')
             .eq('user_id', userId)
             .order('nome');
       }
 
       final familias = List<Map<String, dynamic>>.from(familiasRes);
+      _medicoesPorIdoso = {};
 
       if (familias.isNotEmpty) {
-        final familiaIds = familias.map((f) => f['id']).toList();
-
-        // 2. Busca idosos destas famílias
-        final idososRes = await _supabase
-            .from('idosos')
-            .select()
-            .inFilter('familia_id', familiaIds)
-            .order('nome');
-
-        final idosos = List<Map<String, dynamic>>.from(idososRes);
-        final idosoIds = idosos.map((i) => i['id']).toList();
-
-        // 3. Busca todas as medições destes idosos
-        if (idosoIds.isNotEmpty) {
-          final medicoesRes = await _supabase
-              .from('medicoes')
-              .select()
-              .inFilter('idoso_id', idosoIds)
-              .order('data_medicao', ascending: false);
-          
-          final medicoes = medicoesRes as List;
-          _medicoesPorIdoso = {};
-          for (var m in medicoes) {
-            final idosoId = m['idoso_id'];
-            if (_medicoesPorIdoso[idosoId] == null) {
-              _medicoesPorIdoso[idosoId] = [];
-            }
-            _medicoesPorIdoso[idosoId]!.add(m);
+        for (var f in familias) {
+          final idosos = f['idosos'] as List? ?? [];
+          for (var idoso in idosos) {
+            final mList = List<Map<String, dynamic>>.from(idoso['medicoes'] ?? []);
+            // Ordenar medições por data_medicao descrescente
+            mList.sort((a, b) => (b['data_medicao'] ?? '').toString().compareTo((a['data_medicao'] ?? '').toString()));
+            _medicoesPorIdoso[idoso['id']] = mList;
           }
         }
 
-        setState(() {
-          _familias = familias.map((f) {
-            f['idosos'] = idosos
-                .where((i) => i['familia_id'] == f['id'])
-                .toList();
-            return f;
-          }).toList();
+        cacheService.set(cacheKey, {
+          'familias': familias,
+          'medicoesPorIdoso': _medicoesPorIdoso,
         });
+        if (mounted) {
+          setState(() {
+            _familias = familias;
+          });
+        }
       } else {
-        setState(() {
-          _familias = [];
-          _medicoesPorIdoso = {};
-        });
+        if (mounted) {
+          setState(() {
+            _familias = [];
+            _medicoesPorIdoso = {};
+          });
+        }
       }
     } catch (e) {
       debugPrint('Erro ao carregar dados: $e');

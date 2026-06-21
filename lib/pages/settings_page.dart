@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/settings_service.dart';
 import '../utils.dart';
 import 'auth_pages.dart';
+import '../services/cache_service.dart';
 
 class SettingsPage extends StatefulWidget {
   final SettingsService settingsService;
@@ -144,7 +145,8 @@ class _SettingsPageState extends State<SettingsPage> {
         // isto deve limpar os dados relacionados.
         await supabase.from('users').delete().eq('id', userId);
 
-        // 2. Terminar sessão (isto limpa o token local)
+        // 2. Terminar sessão (isto limpa o token local e a cache)
+        cacheService.clear();
         await supabase.auth.signOut();
 
         if (mounted) {
@@ -197,6 +199,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
 
     if (confirm == true) {
+      cacheService.clear();
       await Supabase.instance.client.auth.signOut();
       if (mounted) {
         Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(

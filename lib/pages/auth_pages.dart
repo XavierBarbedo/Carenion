@@ -28,10 +28,10 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     final supabase = Supabase.instance.client;
 
-    // Check if there is an active session on startup (auto-login)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkCurrentSession();
-    });
+    // Check if there is an active session on startup (auto-login) - Desativado para testar login
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _checkCurrentSession();
+    // });
 
     // Listen for auth state changes, specifically password recovery
     _authSubscription = supabase.auth.onAuthStateChange.listen((data) {

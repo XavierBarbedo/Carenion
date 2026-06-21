@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import '../utils.dart';
+import '../services/cache_service.dart';
 
 class CuidadoraPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -27,6 +28,15 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    final cacheKey = 'cuidadora_${widget.userData['id']}';
+    if (cacheService.has(cacheKey)) {
+      final cached = cacheService.get(cacheKey) as Map<String, dynamic>;
+      _familias = cached['familias'];
+      _cuidadoras = cached['cuidadoras'];
+      _logs = cached['logs'];
+      _isLoading = false;
+    }
     _fetchData();
   }
 
@@ -37,7 +47,10 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
   }
 
   Future<void> _fetchData() async {
-    setState(() => _isLoading = true);
+    final cacheKey = 'cuidadora_${widget.userData['id']}';
+    if (!cacheService.has(cacheKey)) {
+      setState(() => _isLoading = true);
+    }
     try {
       final parentId = widget.userData['id'];
 
@@ -48,10 +61,13 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
           .eq('user_id', parentId)
           .order('nome');
       
-      _familias = famRes;
+      final familiasList = List<Map<String, dynamic>>.from(famRes);
 
-      if (_familias.isNotEmpty) {
-        final famIds = _familias.map((f) => f['id'] as int).toList();
+      List<dynamic> tempCuidadoras = [];
+      List<dynamic> tempLogs = [];
+
+      if (familiasList.isNotEmpty) {
+        final famIds = familiasList.map((f) => f['id'] as int).toList();
 
         // 2. Fetch caregivers linked to these families
         final fcRes = await _supabase
@@ -59,7 +75,7 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
             .select('*, users!inner(*)')
             .inFilter('familia_id', famIds);
         
-        _cuidadoras = fcRes;
+        tempCuidadoras = fcRes;
 
         final logsRes = await _supabase
             .from('cuidadora_logs')
@@ -67,10 +83,21 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
             .inFilter('familia_id', famIds)
             .order('criado_em', ascending: false);
         
-        _logs = logsRes;
-      } else {
-        _cuidadoras = [];
-        _logs = [];
+        tempLogs = logsRes;
+      }
+
+      cacheService.set(cacheKey, {
+        'familias': familiasList,
+        'cuidadoras': tempCuidadoras,
+        'logs': tempLogs,
+      });
+
+      if (mounted) {
+        setState(() {
+          _familias = familiasList;
+          _cuidadoras = tempCuidadoras;
+          _logs = tempLogs;
+        });
       }
     } catch (e) {
       debugPrint('Erro ao carregar dados da cuidadora: $e');

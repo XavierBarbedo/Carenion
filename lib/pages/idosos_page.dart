@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'medication_page.dart';
 import '../utils.dart';
+import '../services/cache_service.dart';
 
 class IdososPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -23,15 +24,23 @@ class _IdososPageState extends State<IdososPage> {
   @override
   void initState() {
     super.initState();
+    final cacheKey = 'idosos_${widget.userData['id']}';
+    if (cacheService.has(cacheKey)) {
+      _familias = cacheService.get(cacheKey);
+      _isLoading = false;
+    }
     _fetchIdosos();
   }
 
   Future<void> _fetchIdosos() async {
-    setState(() => _isLoading = true);
+    final cacheKey = 'idosos_${widget.userData['id']}';
+    if (!cacheService.has(cacheKey)) {
+      setState(() => _isLoading = true);
+    }
     try {
       final supabase = Supabase.instance.client;
 
-      // 1. Busca as famílias
+      // 1. Busca as famílias com os respetivos idosos já aninhados
       debugPrint('[DEBUG] IdososPage: Buscando famílias para userId: ${widget.userData['id']}');
       final List<dynamic> familiasResponse;
       if (widget.userData['tipo'] == 'cuidadora') {
@@ -43,7 +52,7 @@ class _IdososPageState extends State<IdososPage> {
         if (familiaIds.isNotEmpty) {
           familiasResponse = await supabase
               .from('familias')
-              .select()
+              .select('*, idosos:idosos!fk_idoso_familia(*)')
               .inFilter('id', familiaIds)
               .order('nome');
         } else {
@@ -52,7 +61,7 @@ class _IdososPageState extends State<IdososPage> {
       } else {
         familiasResponse = await supabase
             .from('familias')
-            .select()
+            .select('*, idosos:idosos!fk_idoso_familia(*)')
             .eq('user_id', widget.userData['id'])
             .order('nome');
       }
@@ -61,30 +70,20 @@ class _IdososPageState extends State<IdososPage> {
 
       final familias = List<Map<String, dynamic>>.from(familiasResponse);
 
-      if (familias.isNotEmpty) {
-        final familiaIds = familias.map((f) => f['id']).toList();
-
-        // 2. Busca todos os idosos que pertencem a estas famílias
-        final idososResponse = await supabase
-            .from('idosos')
-            .select()
-            .inFilter('familia_id', familiaIds);
-
-        final idosos = List<Map<String, dynamic>>.from(idososResponse);
-
-        // 3. Mapear idosos para as suas respetivas famílias
-        for (var familia in familias) {
-          familia['idosos'] = idosos
-              .where((i) => i['familia_id'] == familia['id'])
-              .toList();
-        }
-      } else {
-        // Se não houver famílias, não há idosos
+      // Ordenar idosos de cada família por nome no lado do cliente
+      for (var familia in familias) {
+        final list = List<Map<String, dynamic>>.from(familia['idosos'] ?? []);
+        list.sort((a, b) => (a['nome'] ?? '').toString().compareTo((b['nome'] ?? '').toString()));
+        familia['idosos'] = list;
       }
 
-      setState(() {
-        _familias = familias;
-      });
+      cacheService.set(cacheKey, familias);
+
+      if (mounted) {
+        setState(() {
+          _familias = familias;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
