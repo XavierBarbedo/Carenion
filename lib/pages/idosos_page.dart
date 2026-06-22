@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'medication_page.dart';
 import '../utils.dart';
 import '../services/cache_service.dart';
+import '../services/emergency_pdf_service.dart';
 
 class IdososPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -837,6 +838,94 @@ class IdosoDetailsPage extends StatelessWidget {
     }
   }
 
+  void _showEmergencyDialog(BuildContext context) {
+    final nomeController = TextEditingController(text: userData['nome'] ?? '');
+    final telefoneController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.contact_emergency, color: Colors.redAccent),
+            SizedBox(width: 8),
+            Text(
+              'Ficha de Emergência',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Introduza os dados do contacto de emergência (familiar/cuidador) que irá constar na ficha:',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nomeController,
+              decoration: const InputDecoration(
+                labelText: 'Nome do Familiar / Responsável',
+                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: telefoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Telefone de Contacto',
+                prefixIcon: Icon(Icons.phone),
+                border: OutlineInputBorder(),
+                hintText: 'Ex: 912345678',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              final contactName = nomeController.text.trim();
+              final contactPhone = telefoneController.text.trim();
+
+              if (contactName.isEmpty || contactPhone.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Por favor, preencha o nome e telefone de contacto.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+              
+              EmergencyPdfService.generateAndPrintEmergencyCard(
+                context: context,
+                idosoData: idosoData,
+                emergencyContactName: contactName,
+                emergencyContactPhone: contactPhone,
+              );
+            },
+            child: const Text('Gerar Ficha'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1012,6 +1101,26 @@ class IdosoDetailsPage extends StatelessWidget {
                 icon: const Icon(Icons.medication),
                 label: const Text(
                   'Gerir Medicação',
+                  style: TextStyle(fontSize: 18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => _showEmergencyDialog(context),
+                icon: const Icon(Icons.contact_emergency),
+                label: const Text(
+                  'Ficha de Emergência',
                   style: TextStyle(fontSize: 18),
                 ),
               ),
