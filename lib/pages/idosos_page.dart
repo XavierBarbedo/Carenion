@@ -868,7 +868,7 @@ class IdosoDetailsPage extends StatelessWidget {
             TextField(
               controller: nomeController,
               decoration: const InputDecoration(
-                labelText: 'Nome do Familiar / Responsável',
+                labelText: 'Nome do Familiar / Responsável *',
                 prefixIcon: Icon(Icons.person),
                 border: OutlineInputBorder(),
               ),
@@ -877,11 +877,14 @@ class IdosoDetailsPage extends StatelessWidget {
             TextField(
               controller: telefoneController,
               keyboardType: TextInputType.phone,
+              maxLength: 9,
               decoration: const InputDecoration(
-                labelText: 'Telefone de Contacto',
+                labelText: 'Telefone de Contacto *',
                 prefixIcon: Icon(Icons.phone),
                 border: OutlineInputBorder(),
                 hintText: 'Ex: 912345678',
+                counterText: '',
+                helperText: '9 dígitos obrigatórios',
               ),
             ),
           ],
@@ -900,10 +903,22 @@ class IdosoDetailsPage extends StatelessWidget {
               final contactName = nomeController.text.trim();
               final contactPhone = telefoneController.text.trim();
 
-              if (contactName.isEmpty || contactPhone.isEmpty) {
+              if (contactName.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Por favor, preencha o nome e telefone de contacto.'),
+                    content: Text('Por favor, preencha o nome do contacto.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
+
+              // Validar 9 dígitos numéricos
+              final phoneRegex = RegExp(r'^\d{9}$');
+              if (!phoneRegex.hasMatch(contactPhone)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
                     backgroundColor: Colors.red,
                   ),
                 );

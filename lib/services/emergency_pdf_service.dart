@@ -123,43 +123,64 @@ class EmergencyPdfService {
               // Cabeçalho da Ficha
               pw.Container(
                 decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                    bottom: pw.BorderSide(color: PdfColors.red900, width: 2),
-                  ),
+                  color: PdfColors.red900,
+                  borderRadius: pw.BorderRadius.circular(6),
                 ),
-                padding: pw.EdgeInsets.only(bottom: 8),
+                padding: pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 margin: pw.EdgeInsets.only(bottom: 16),
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Row(
-                      crossAxisAlignment: pw.CrossAxisAlignment.center,
+                    // Título do documento (esquerda)
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Image(appIconImage, width: 35, height: 35),
-                        pw.SizedBox(width: 8),
-                        pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('FICHA CLÍNICA DE EMERGÊNCIA', style: titleStyle),
-                            pw.SizedBox(height: 4),
-                            pw.Text(
-                              'Documento de apoio para assistência médica hospitalar / urgência',
-                              style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
-                            ),
-                          ],
+                        pw.Text('FICHA CLÍNICA DE EMERGÊNCIA',
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            )),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'Assistência médica hospitalar / urgência',
+                          style: pw.TextStyle(fontSize: 8, color: PdfColors.red100),
+                        ),
+                        pw.SizedBox(height: 3),
+                        pw.Text(
+                          'Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+                          style: pw.TextStyle(fontSize: 7, color: PdfColors.red200),
                         ),
                       ],
                     ),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text('CARENION', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.amber800)),
-                        pw.Text('Gerado em: ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey500)),
-                      ],
+                    // Logo Carenion (direita)
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(6),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.white,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      child: pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.center,
+                        children: [
+                          pw.Image(appIconImage, width: 28, height: 28),
+                          pw.SizedBox(width: 6),
+                          pw.Text(
+                            'CARENION',
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.amber800,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
+
 
               // Dados Pessoais e de Emergência lado-a-lado
               pw.Row(
