@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' as material;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -24,6 +25,10 @@ class EmergencyPdfService {
 
     try {
       final supabase = Supabase.instance.client;
+
+      // Carregar ícone da aplicação
+      final imageBytes = await rootBundle.load('images/carenion_Icon-removebg-preview.png');
+      final appIconImage = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
       // 2. Procurar medicações
       final List<dynamic> medsRes = await supabase
@@ -127,14 +132,21 @@ class EmergencyPdfService {
                 child: pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        pw.Text('FICHA CLÍNICA DE EMERGÊNCIA', style: titleStyle),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          'Documento de apoio para assistência médica hospitalar / urgência',
-                          style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                        pw.Image(appIconImage, width: 35, height: 35),
+                        pw.SizedBox(width: 8),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('FICHA CLÍNICA DE EMERGÊNCIA', style: titleStyle),
+                            pw.SizedBox(height: 4),
+                            pw.Text(
+                              'Documento de apoio para assistência médica hospitalar / urgência',
+                              style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                            ),
+                          ],
                         ),
                       ],
                     ),

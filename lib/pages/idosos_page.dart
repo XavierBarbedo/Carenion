@@ -1125,6 +1125,7 @@ class IdosoDetailsPage extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 60),
           ],
         ),
       ),
