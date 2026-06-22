@@ -110,6 +110,20 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Colors.amber,
         unselectedItemColor: Colors.grey,
+        selectedFontSize: 10.0,
+        unselectedFontSize: 9.5,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        selectedLabelStyle: const TextStyle(
+          fontSize: 10.0,
+          fontWeight: FontWeight.bold,
+          overflow: TextOverflow.visible,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.normal,
+          overflow: TextOverflow.visible,
+        ),
         onTap: _onItemTapped,
       ),
     );
