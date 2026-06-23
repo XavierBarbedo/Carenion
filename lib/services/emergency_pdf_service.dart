@@ -14,15 +14,6 @@ class EmergencyPdfService {
     required String emergencyContactName,
     required String emergencyContactPhone,
   }) async {
-    // 1. Mostrar diálogo de loading
-    material.showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const material.Center(
-        child: material.CircularProgressIndicator(color: material.Colors.amber),
-      ),
-    );
-
     try {
       final supabase = Supabase.instance.client;
 
@@ -30,14 +21,14 @@ class EmergencyPdfService {
       final imageBytes = await rootBundle.load('images/carenion_Icon-removebg-preview.png');
       final appIconImage = pw.MemoryImage(imageBytes.buffer.asUint8List());
 
-      // 2. Procurar medicações
+      // Procurar medicações
       final List<dynamic> medsRes = await supabase
           .from('medicacoes')
           .select()
           .eq('idoso_id', idosoData['id'])
           .order('nome');
 
-      // 3. Procurar medições (últimas 10)
+      // Procurar medições (últimas 10)
       final List<dynamic> medicoesRes = await supabase
           .from('medicoes')
           .select()
@@ -45,13 +36,9 @@ class EmergencyPdfService {
           .order('data_medicao', ascending: false)
           .limit(10);
 
-      // Fechar o diálogo de loading
-      if (context.mounted) {
-        material.Navigator.pop(context);
-      }
-
-      // 4. Gerar o documento PDF
+      // Gerar o documento PDF
       final pdf = pw.Document();
+
 
       // Estilos do PDF
       final titleStyle = pw.TextStyle(

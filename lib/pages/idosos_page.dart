@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'medication_page.dart';
 import '../utils.dart';
 import '../services/cache_service.dart';
@@ -779,7 +780,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
   }
 }
 
-class IdosoDetailsPage extends StatelessWidget {
+class IdosoDetailsPage extends StatefulWidget {
   final Map<String, dynamic> idosoData;
   final Map<String, dynamic> userData;
 
@@ -789,13 +790,20 @@ class IdosoDetailsPage extends StatelessWidget {
     required this.userData,
   });
 
+  @override
+  State<IdosoDetailsPage> createState() => _IdosoDetailsPageState();
+}
+
+class _IdosoDetailsPageState extends State<IdosoDetailsPage> {
+  bool _isGeneratingPdf = false;
+
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Eliminar Registo'),
         content: Text(
-          'Tem a certeza que deseja eliminar o registo de ${idosoData['nome']}?',
+          'Tem a certeza que deseja eliminar o registo de ${widget.idosoData['nome']}?',
         ),
         actions: [
           TextButton(
@@ -815,10 +823,9 @@ class IdosoDetailsPage extends StatelessWidget {
       try {
         final supabase = Supabase.instance.client;
 
-        // Deletar o idoso - O cascade do banco tratará de medicações e eventos
-        await supabase.from('idosos').delete().eq('id', idosoData['id']);
+        await supabase.from('idosos').delete().eq('id', widget.idosoData['id']);
 
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Registo eliminado com sucesso'),
@@ -827,7 +834,7 @@ class IdosoDetailsPage extends StatelessWidget {
         );
         Navigator.pop(context, true);
       } catch (e) {
-        if (!context.mounted) return;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(translateSupabaseError(e)),
@@ -838,112 +845,145 @@ class IdosoDetailsPage extends StatelessWidget {
     }
   }
 
-  void _showEmergencyDialog(BuildContext context) {
-    final nomeController = TextEditingController(text: userData['nome'] ?? '');
-    final telefoneController = TextEditingController();
+/// Chave SharedPreferences por conta: garante que contas diferentes
+  /// não partilham o mesmo número predefinido.
+  String get _emergencyPhoneKey =>
+      'emergency_contact_phone_${widget.userData['id']}';
+
+  Future<void> _showEmergencyDialog() async {
+    final nomeController = TextEditingController(text: widget.userData['nome'] ?? '');
+
+    // Carregar número guardado anteriormente para esta conta
+    final prefs = await SharedPreferences.getInstance();
+    final savedPhone = prefs.getString(_emergencyPhoneKey) ?? '';
+    final telefoneController = TextEditingController(text: savedPhone);
+    bool hasSavedPhone = savedPhone.isNotEmpty;
+
+    if (!mounted) return;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.contact_emergency, color: Colors.redAccent),
-            SizedBox(width: 8),
-            Text(
-              'Ficha de Emergência',
-              style: TextStyle(fontWeight: FontWeight.bold),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.contact_emergency, color: Colors.redAccent),
+              SizedBox(width: 8),
+              Text(
+                'Ficha de Emergência',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Introduza os dados do contacto de emergência (familiar/cuidador) que irá constar na ficha:',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nomeController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome do Familiar / Responsável *',
+                  prefixIcon: Icon(Icons.person),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: telefoneController,
+                keyboardType: TextInputType.phone,
+                maxLength: 9,
+                onChanged: (v) =>
+                    setDialogState(() => hasSavedPhone = v.trim().isNotEmpty),
+                decoration: InputDecoration(
+                  labelText: 'Telefone de Contacto *',
+                  prefixIcon: const Icon(Icons.phone),
+                  border: const OutlineInputBorder(),
+                  hintText: 'Ex: 912345678',
+                  counterText: '',
+                  helperText: hasSavedPhone
+                      ? '✓ Número guardado para esta conta'
+                      : '9 dígitos obrigatórios',
+                  helperStyle: TextStyle(
+                    color: hasSavedPhone ? Colors.green : null,
+                    fontWeight: hasSavedPhone ? FontWeight.w500 : null,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () async {
+                final contactName = nomeController.text.trim();
+                final contactPhone = telefoneController.text.trim();
+
+                if (contactName.isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Por favor, preencha o nome do contacto.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                final phoneRegex = RegExp(r'^\d{9}$');
+                if (!phoneRegex.hasMatch(contactPhone)) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext);
+
+                // Guardar número na cache persistente desta conta
+                await prefs.setString(_emergencyPhoneKey, contactPhone);
+
+                setState(() => _isGeneratingPdf = true);
+                try {
+                  await EmergencyPdfService.generateAndPrintEmergencyCard(
+                    context: context,
+                    idosoData: widget.idosoData,
+                    emergencyContactName: contactName,
+                    emergencyContactPhone: contactPhone,
+                  );
+                } finally {
+                  if (mounted) setState(() => _isGeneratingPdf = false);
+                }
+              },
+              child: const Text('Gerar Ficha'),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Introduza os dados do contacto de emergência (familiar/cuidador) que irá constar na ficha:',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nomeController,
-              decoration: const InputDecoration(
-                labelText: 'Nome do Familiar / Responsável *',
-                prefixIcon: Icon(Icons.person),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: telefoneController,
-              keyboardType: TextInputType.phone,
-              maxLength: 9,
-              decoration: const InputDecoration(
-                labelText: 'Telefone de Contacto *',
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
-                hintText: 'Ex: 912345678',
-                counterText: '',
-                helperText: '9 dígitos obrigatórios',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              final contactName = nomeController.text.trim();
-              final contactPhone = telefoneController.text.trim();
-
-              if (contactName.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Por favor, preencha o nome do contacto.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              // Validar 9 dígitos numéricos
-              final phoneRegex = RegExp(r'^\d{9}$');
-              if (!phoneRegex.hasMatch(contactPhone)) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              
-              EmergencyPdfService.generateAndPrintEmergencyCard(
-                context: context,
-                idosoData: idosoData,
-                emergencyContactName: contactName,
-                emergencyContactPhone: contactPhone,
-              );
-            },
-            child: const Text('Gerar Ficha'),
-          ),
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: !_isGeneratingPdf,
+      child: Stack(
+        children: [
+          Scaffold(
       appBar: AppBar(
         title: Row(
           mainAxisSize: MainAxisSize.max,
@@ -957,7 +997,7 @@ class IdosoDetailsPage extends StatelessWidget {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Text(
-                  idosoData['nome'] ?? 'Detalhes',
+                  widget.idosoData['nome'] ?? 'Detalhes',
                   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
                 ),
               ),
@@ -970,18 +1010,18 @@ class IdosoDetailsPage extends StatelessWidget {
             : const Color(0xFFFFFBE6),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.amber),
-        actions: userData['tipo'] == 'cuidadora'
+        actions: widget.userData['tipo'] == 'cuidadora'
             ? null
             : [
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  onPressed: () async {
+                  onPressed: _isGeneratingPdf ? null : () async {
                     final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => EditIdosoPage(
-                          idosoData: idosoData,
-                          userId: userData['id'],
+                          idosoData: widget.idosoData,
+                          userId: widget.userData['id'],
                         ),
                       ),
                     );
@@ -992,7 +1032,7 @@ class IdosoDetailsPage extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  onPressed: () => _confirmDelete(context),
+                  onPressed: _isGeneratingPdf ? null : () => _confirmDelete(context),
                 ),
               ],
       ),
@@ -1005,21 +1045,21 @@ class IdosoDetailsPage extends StatelessWidget {
               child: CircleAvatar(
                 radius: 60,
                 backgroundColor: Colors.amber.withOpacity(0.2),
-                backgroundImage: idosoData['foto_url'] != null && idosoData['foto_url'].toString().isNotEmpty
-                    ? getAvatarProvider(idosoData['foto_url'])
+                backgroundImage: widget.idosoData['foto_url'] != null && widget.idosoData['foto_url'].toString().isNotEmpty
+                    ? getAvatarProvider(widget.idosoData['foto_url'])
                     : null,
-                child: idosoData['foto_url'] == null || idosoData['foto_url'].toString().isEmpty
+                child: widget.idosoData['foto_url'] == null || widget.idosoData['foto_url'].toString().isEmpty
                     ? const Icon(Icons.person, size: 60, color: Colors.amber)
                     : null,
               ),
             ),
             const SizedBox(height: 24),
-            _buildDetailItem(Icons.person_outline, 'Nome', idosoData['nome']),
+            _buildDetailItem(Icons.person_outline, 'Nome', widget.idosoData['nome']),
             _buildDetailItem(
               Icons.calendar_today_outlined,
               'Data de Nascimento',
               () {
-                final raw = idosoData['data_nascimento'];
+                final raw = widget.idosoData['data_nascimento'];
                 if (raw == null || raw.toString().isEmpty) return null;
                 try {
                   final parsed = DateTime.tryParse(raw.toString());
@@ -1034,7 +1074,7 @@ class IdosoDetailsPage extends StatelessWidget {
               Icons.cake_outlined,
               'Idade',
               () {
-                final raw = idosoData['data_nascimento'];
+                final raw = widget.idosoData['data_nascimento'];
                 if (raw == null || raw.toString().isEmpty) return null;
                 try {
                   DateTime? nascimento = DateTime.tryParse(raw.toString());
@@ -1056,38 +1096,38 @@ class IdosoDetailsPage extends StatelessWidget {
             _buildDetailItem(
               Icons.wc_outlined,
               'Sexo',
-              idosoData['sexo'] == 'M'
+              widget.idosoData['sexo'] == 'M'
                   ? 'Masculino'
-                  : idosoData['sexo'] == 'F'
+                  : widget.idosoData['sexo'] == 'F'
                   ? 'Feminino'
                   : 'Outro',
             ),
-            _buildDetailItem(Icons.badge_outlined, 'NIF', idosoData['nif']),
-            _buildDetailItem(Icons.medical_services_outlined, 'SNS', idosoData['sns_numero']),
-            _buildDetailItem(Icons.credit_card_outlined, 'CC/BI', idosoData['cc_bi']),
-            if (idosoData['seguro_saude'] != null && idosoData['seguro_saude'].toString().isNotEmpty) ...[
-              _buildDetailItem(Icons.health_and_safety_outlined, 'Seguro de Saúde', idosoData['seguro_saude']),
-              _buildDetailItem(Icons.numbers, 'Nº Seguro', idosoData['seguro_numero']),
+            _buildDetailItem(Icons.badge_outlined, 'NIF', widget.idosoData['nif']),
+            _buildDetailItem(Icons.medical_services_outlined, 'SNS', widget.idosoData['sns_numero']),
+            _buildDetailItem(Icons.credit_card_outlined, 'CC/BI', widget.idosoData['cc_bi']),
+            if (widget.idosoData['seguro_saude'] != null && widget.idosoData['seguro_saude'].toString().isNotEmpty) ...[
+              _buildDetailItem(Icons.health_and_safety_outlined, 'Seguro de Saúde', widget.idosoData['seguro_saude']),
+              _buildDetailItem(Icons.numbers, 'Nº Seguro', widget.idosoData['seguro_numero']),
             ],
             _buildDetailItem(
               Icons.phone_outlined,
               'Telefone',
-              idosoData['telefone'],
+              widget.idosoData['telefone'],
             ),
             _buildDetailItem(
               Icons.home_outlined,
               'Morada',
-              idosoData['morada'],
+              widget.idosoData['morada'],
             ),
             _buildDetailItem(
               Icons.medical_information_outlined,
               'Patologias',
-              idosoData['patologias'],
+              widget.idosoData['patologias'],
             ),
             _buildDetailItem(
               Icons.note_add_outlined,
               'Observações',
-              idosoData['observacoes'],
+              widget.idosoData['observacoes'],
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -1107,8 +1147,8 @@ class IdosoDetailsPage extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (context) =>
                           ManageMedicacoesPage(
-                            idosoData: idosoData,
-                            userData: userData,
+                            idosoData: widget.idosoData,
+                            userData: widget.userData,
                           ),
                     ),
                   );
@@ -1132,11 +1172,20 @@ class IdosoDetailsPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => _showEmergencyDialog(context),
-                icon: const Icon(Icons.contact_emergency),
-                label: const Text(
-                  'Ficha de Emergência',
-                  style: TextStyle(fontSize: 18),
+                onPressed: _isGeneratingPdf ? null : _showEmergencyDialog,
+                icon: _isGeneratingPdf
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Icon(Icons.contact_emergency),
+                label: Text(
+                  _isGeneratingPdf ? 'A gerar ficha...' : 'Ficha de Emergência',
+                  style: const TextStyle(fontSize: 18),
                 ),
               ),
             ),
@@ -1144,6 +1193,17 @@ class IdosoDetailsPage extends StatelessWidget {
           ],
         ),
       ),
+        ),
+        // Overlay bloqueador durante geração do PDF
+        if (_isGeneratingPdf)
+          const Positioned.fill(
+            child: AbsorbPointer(
+              absorbing: true,
+              child: SizedBox.shrink(),
+            ),
+          ),
+      ],
+    ),
     );
   }
 
