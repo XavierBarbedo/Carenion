@@ -193,6 +193,7 @@ class _IdososPageState extends State<IdososPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  clipBehavior: Clip.antiAlias,
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ExpansionTile(
                     shape: const Border(),
@@ -576,6 +577,7 @@ class _RegisterIdosoPageState extends State<RegisterIdosoPage> {
               ),
               const SizedBox(height: 16),
               InkWell(
+                borderRadius: BorderRadius.circular(12),
                 onTap: _pickDate,
                 child: IgnorePointer(
                   child: _buildTextField(
@@ -1503,6 +1505,7 @@ class _EditIdosoPageState extends State<EditIdosoPage> {
               ),
               const SizedBox(height: 16),
               InkWell(
+                borderRadius: BorderRadius.circular(12),
                 onTap: _pickDate,
                 child: IgnorePointer(
                   child: _buildTextField(

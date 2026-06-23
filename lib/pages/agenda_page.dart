@@ -303,6 +303,7 @@ class _AgendaPageState extends State<AgendaPage> {
                 : BorderSide.none,
           ),
           child: InkWell(
+            borderRadius: BorderRadius.circular(12),
             onTap: () => _showEventDetails(context, event, timeStr),
             child: ListTile(
               leading: Container(

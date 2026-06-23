@@ -17,6 +17,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
   bool _isLoading = true;
   List<dynamic> _familias = [];
   Map<int, List<dynamic>> _medicoesPorIdoso = {};
+  final Set<int> _expandedIdosos = {};
 
   @override
   void initState() {
@@ -151,6 +152,7 @@ class _MedicoesPageState extends State<MedicoesPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
+                        clipBehavior: Clip.antiAlias,
                         child: ExpansionTile(
                           shape: const Border(),
                           collapsedShape: const Border(),
@@ -214,7 +216,9 @@ class _MedicoesPageState extends State<MedicoesPage> {
   }
 
   Widget _buildIdosoExpansionTile(dynamic idoso) {
-    final medicoes = _medicoesPorIdoso[idoso['id']] ?? [];
+    final idosoId = idoso['id'] as int;
+    final isExpanded = _expandedIdosos.contains(idosoId);
+    final medicoes = _medicoesPorIdoso[idosoId] ?? [];
     
     // Agrupar por tipo
     Map<String, List<dynamic>> medicoesAgrupadas = {};
@@ -240,6 +244,15 @@ class _MedicoesPageState extends State<MedicoesPage> {
             shape: const Border(),
             collapsedShape: const Border(),
             tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            onExpansionChanged: (expanded) {
+              setState(() {
+                if (expanded) {
+                  _expandedIdosos.add(idosoId);
+                } else {
+                  _expandedIdosos.remove(idosoId);
+                }
+              });
+            },
             leading: idoso['foto_url'] != null && idoso['foto_url'].toString().isNotEmpty
                 ? CircleAvatar(
                     backgroundImage: getAvatarProvider(idoso['foto_url']),
@@ -266,7 +279,11 @@ class _MedicoesPageState extends State<MedicoesPage> {
                   tooltip: 'Adicionar Medição',
                 ),
                 const SizedBox(width: 8),
-                const Icon(Icons.expand_more, color: Colors.grey),
+                AnimatedRotation(
+                  turns: isExpanded ? 0.5 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Icon(Icons.expand_more, color: Colors.grey),
+                ),
               ],
             ),
             children: [

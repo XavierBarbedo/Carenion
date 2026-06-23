@@ -598,6 +598,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: Colors.amber.withOpacity(0.5)),
           ),
+          clipBehavior: Clip.antiAlias,
           color: Colors.amber.withOpacity(0.05),
           child: ExpansionTile(
             shape: const Border(),
@@ -712,6 +713,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(color: Colors.amber.withOpacity(0.5)),
           ),
+          clipBehavior: Clip.antiAlias,
           color: Colors.amber.withOpacity(0.05),
           child: ExpansionTile(
             initiallyExpanded: true,
@@ -977,6 +979,10 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         final idosos = familia['idosos'] as List;
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          clipBehavior: Clip.antiAlias,
           child: ExpansionTile(
             shape: const Border(),
             collapsedShape: const Border(),
