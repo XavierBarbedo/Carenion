@@ -379,10 +379,15 @@ class _MedicoesPageState extends State<MedicoesPage> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text('Nova Medição para ${idoso['nome']}'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Nova Medição para ${idoso['nome']}',
+            overflow: TextOverflow.ellipsis,
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 DropdownButtonFormField<String>(
                   value: selectedTipo,
@@ -448,65 +453,72 @@ class _MedicoesPageState extends State<MedicoesPage> {
                   ),
                   maxLines: 2,
                 ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        final valor = valorController.text.trim();
+                        final tipoFinal = selectedTipo == 'Outra' ? tipoOutraController.text.trim() : selectedTipo;
+
+                        if (valor.isEmpty || tipoFinal.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Por favor preencha o tipo e o valor.')),
+                          );
+                          return;
+                        }
+
+                        try {
+                          // Usar o auth UUID como fonte fidedigna para a FK criado_por
+                          final authUid = _supabase.auth.currentUser?.id ?? widget.userData['id'];
+                          final insertData = {
+                            'idoso_id': idoso['id'],
+                            'tipo': tipoFinal,
+                            'valor': valor,
+                            'data_medicao': selectedDate.toIso8601String(),
+                            'observacoes': obsController.text,
+                            'criado_por': authUid,
+                          };
+                          final response = await _supabase.from('medicoes').insert(insertData).select().single();
+                          final int medId = response['id'];
+
+                          if (widget.userData['tipo'] == 'cuidadora') {
+                            await logCuidadoraAction(
+                              acao: 'criar',
+                              entidade: 'medição',
+                              entidadeId: medId,
+                              familiaId: idoso['familia_id'],
+                              detalhes: '$tipoFinal: $valor ${_getUnidade(tipoFinal)}',
+                              cuidadoraId: widget.userData['id'],
+                            );
+                          }
+                          if (mounted) Navigator.pop(context);
+                          _fetchData(); // Recarregar tudo
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(translateSupabaseError(e))),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Guardar'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                final valor = valorController.text.trim();
-                final tipoFinal = selectedTipo == 'Outra' ? tipoOutraController.text.trim() : selectedTipo;
-
-                if (valor.isEmpty || tipoFinal.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Por favor preencha o tipo e o valor.')),
-                  );
-                  return;
-                }
-
-                try {
-                  final insertData = {
-                    'idoso_id': idoso['id'],
-                    'tipo': tipoFinal,
-                    'valor': valor,
-                    'data_medicao': selectedDate.toIso8601String(),
-                    'observacoes': obsController.text,
-                    'criado_por': widget.userData['id'],
-                  };
-                  final response = await _supabase.from('medicoes').insert(insertData).select().single();
-                  final int medId = response['id'];
-
-                  if (widget.userData['tipo'] == 'cuidadora') {
-                    await logCuidadoraAction(
-                      acao: 'criar',
-                      entidade: 'medição',
-                      entidadeId: medId,
-                      familiaId: idoso['familia_id'],
-                      detalhes: '$tipoFinal: $valor ${_getUnidade(tipoFinal)}',
-                      cuidadoraId: widget.userData['id'],
-                    );
-                  }
-                  if (mounted) Navigator.pop(context);
-                  _fetchData(); // Recarregar tudo
-                } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(translateSupabaseError(e))),
-                    );
-                  }
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
         ),
       ),
     );

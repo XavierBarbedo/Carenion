@@ -872,108 +872,118 @@ class _IdosoDetailsPageState extends State<IdosoDetailsPage> {
             children: [
               Icon(Icons.contact_emergency, color: Colors.redAccent),
               SizedBox(width: 8),
-              Text(
-                'Ficha de Emergência',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Ficha de Emergência',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Introduza os dados do contacto de emergência (familiar/cuidador) que irá constar na ficha:',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: nomeController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome do Familiar / Responsável *',
-                  prefixIcon: Icon(Icons.person),
-                  border: OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Introduza os dados do contacto de emergência (familiar/cuidador) que irá constar na ficha:',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: telefoneController,
-                keyboardType: TextInputType.phone,
-                maxLength: 9,
-                onChanged: (v) =>
-                    setDialogState(() => hasSavedPhone = v.trim().isNotEmpty),
-                decoration: InputDecoration(
-                  labelText: 'Telefone de Contacto *',
-                  prefixIcon: const Icon(Icons.phone),
-                  border: const OutlineInputBorder(),
-                  hintText: 'Ex: 912345678',
-                  counterText: '',
-                  helperText: hasSavedPhone
-                      ? '✓ Número guardado para esta conta'
-                      : '9 dígitos obrigatórios',
-                  helperStyle: TextStyle(
-                    color: hasSavedPhone ? Colors.green : null,
-                    fontWeight: hasSavedPhone ? FontWeight.w500 : null,
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nomeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nome do Familiar / Responsável *',
+                    prefixIcon: Icon(Icons.person),
+                    border: OutlineInputBorder(),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: telefoneController,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 9,
+                  onChanged: (v) =>
+                      setDialogState(() => hasSavedPhone = v.trim().isNotEmpty),
+                  decoration: InputDecoration(
+                    labelText: 'Telefone de Contacto *',
+                    prefixIcon: const Icon(Icons.phone),
+                    border: const OutlineInputBorder(),
+                    hintText: 'Ex: 912345678',
+                    counterText: '',
+                    helperText: hasSavedPhone
+                        ? '✓ Número guardado para esta conta'
+                        : '9 dígitos obrigatórios',
+                    helperStyle: TextStyle(
+                      color: hasSavedPhone ? Colors.green : null,
+                      fontWeight: hasSavedPhone ? FontWeight.w500 : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        final contactName = nomeController.text.trim();
+                        final contactPhone = telefoneController.text.trim();
+
+                        if (contactName.isEmpty) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor, preencha o nome do contacto.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final phoneRegex = RegExp(r'^\d{9}$');
+                        if (!phoneRegex.hasMatch(contactPhone)) {
+                          ScaffoldMessenger.of(dialogContext).showSnackBar(
+                            const SnackBar(
+                              content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(dialogContext);
+
+                        // Guardar número na cache persistente desta conta
+                        await prefs.setString(_emergencyPhoneKey, contactPhone);
+
+                        setState(() => _isGeneratingPdf = true);
+                        try {
+                          await EmergencyPdfService.generateAndPrintEmergencyCard(
+                            context: context,
+                            idosoData: widget.idosoData,
+                            emergencyContactName: contactName,
+                            emergencyContactPhone: contactPhone,
+                          );
+                        } finally {
+                          if (mounted) setState(() => _isGeneratingPdf = false);
+                        }
+                      },
+                      child: const Text('Gerar Ficha'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                final contactName = nomeController.text.trim();
-                final contactPhone = telefoneController.text.trim();
-
-                if (contactName.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor, preencha o nome do contacto.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                final phoneRegex = RegExp(r'^\d{9}$');
-                if (!phoneRegex.hasMatch(contactPhone)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(
-                      content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                Navigator.pop(dialogContext);
-
-                // Guardar número na cache persistente desta conta
-                await prefs.setString(_emergencyPhoneKey, contactPhone);
-
-                setState(() => _isGeneratingPdf = true);
-                try {
-                  await EmergencyPdfService.generateAndPrintEmergencyCard(
-                    context: context,
-                    idosoData: widget.idosoData,
-                    emergencyContactName: contactName,
-                    emergencyContactPhone: contactPhone,
-                  );
-                } finally {
-                  if (mounted) setState(() => _isGeneratingPdf = false);
-                }
-              },
-              child: const Text('Gerar Ficha'),
-            ),
-          ],
         ),
       ),
     );

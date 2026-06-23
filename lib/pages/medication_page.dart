@@ -399,6 +399,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('Irá registar a toma de ${med['nome']} para ${med['idoso_nome']}.'),
               const SizedBox(height: 16),
@@ -410,24 +411,29 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                 ),
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, null),
+                    child: const Text('Cancelar'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final val = int.tryParse(quantityController.text);
+                      if (val != null && val > 0) {
+                        Navigator.pop(context, val);
+                      }
+                    },
+                    child: const Text('Confirmar'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final val = int.tryParse(quantityController.text);
-              if (val != null && val > 0) {
-                Navigator.pop(context, val);
-              }
-            },
-            child: const Text('Confirmar'),
-          ),
-        ],
       ),
     );
 
@@ -1504,146 +1510,153 @@ class _ManageMedicacoesPageState extends State<ManageMedicacoesPage> {
                   ),
                   maxLines: 3,
                 ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () async {
+                        // Validação de campos obrigatórios com mensagens de erro
+                        if (nomeController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor introduza o nome do medicamento.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (doseController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor introduza a dose do medicamento.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        // Validação de horários para tipo normal
+                        if (_selectedTipo == 'normal' && selectedRegularidades.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor seleccione pelo menos um horário de toma.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        // Validação de instruções SOS
+                        if (_selectedTipo == 'sos' && instrucoesSosController.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor introduza as instruções SOS.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (stockController.text.trim().isEmpty || int.tryParse(stockController.text) == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Por favor introduza um valor válido para o stock.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        final stockValue = int.tryParse(stockController.text) ?? 0;
+                        final regularidadeStr = _selectedTipo == 'normal' ? selectedRegularidades.join(', ') : 'em caso de emergência';
+                        final isCuidadora = widget.userData['tipo'] == 'cuidadora';
+                        // Usar o auth UUID como fonte fidedigna para a FK criado_por
+                        final authUid = _supabase.auth.currentUser?.id ?? widget.userData['id'];
+                        final data = {
+                          'idoso_id': widget.idosoData['id'],
+                          'nome': nomeController.text.trim(),
+                          'quantidade': doseController.text.trim(),
+                          'regularidade': regularidadeStr,
+                          'observacoes': obsController.text,
+                          'tipo': _selectedTipo,
+                          'instrucoes_sos': _selectedTipo == 'sos' ? instrucoesSosController.text : null,
+                          if (med == null) 'criado_por': authUid,
+                        };
+                        try {
+                          if (med == null) {
+                            final response = await _supabase.from('medicacoes').insert(data).select().single();
+                            if (isCuidadora) {
+                              await logCuidadoraAction(
+                                acao: 'criar',
+                                entidade: 'medicamento',
+                                entidadeId: response['id'],
+                                familiaId: widget.idosoData['familia_id'],
+                                detalhes: '${data['nome']} - ${data['quantidade']}',
+                                cuidadoraId: widget.userData['id'],
+                              );
+                            }
+                          } else {
+                            await _supabase
+                                .from('medicacoes')
+                                .update(data)
+                                .eq('id', med['id']);
+                            if (isCuidadora) {
+                              await logCuidadoraAction(
+                                acao: 'editar',
+                                entidade: 'medicamento',
+                                entidadeId: med['id'],
+                                familiaId: widget.idosoData['familia_id'],
+                                detalhes: '${data['nome']} - ${data['quantidade']}',
+                                cuidadoraId: widget.userData['id'],
+                              );
+                            }
+                          }
+
+                          // Atualizar stock na tabela centralizada (upsert)
+                          final int updatedStock = stockValue;
+                          final String medNomeLower = nomeController.text.toLowerCase();
+                          final int familiaId = widget.idosoData['familia_id'];
+
+                          await _supabase.from('stock_familia').upsert({
+                            'familia_id': familiaId,
+                            'nome_medicamento': medNomeLower,
+                            'stock_atual': updatedStock,
+                          }, onConflict: 'familia_id,nome_medicamento');
+
+                          if (updatedStock < settingsService.lowStockThreshold) {
+                            notificationService.showNotification(
+                              id: (med?['id'] ?? 9999) + 9000000,
+                              title: 'Stock Baixo: ${data['nome']}',
+                              body: 'Resta apenas $updatedStock unidades.',
+                            );
+                          }
+                          if (mounted) Navigator.pop(context);
+                          _fetchMedicacoes();
+                        } catch (e) {
+                          if (mounted)
+                            ScaffoldMessenger.of(
+                              context,
+                            ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
+                        }
+                      },
+                      child: const Text('Guardar'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: () async {
-                // Validação de campos obrigatórios com mensagens de erro
-                if (nomeController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor introduza o nome do medicamento.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                if (doseController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor introduza a dose do medicamento.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-                
-                // Validação de horários para tipo normal
-                if (_selectedTipo == 'normal' && selectedRegularidades.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor seleccione pelo menos um horário de toma.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                // Validação de instruções SOS
-                if (_selectedTipo == 'sos' && instrucoesSosController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor introduza as instruções SOS.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                if (stockController.text.trim().isEmpty || int.tryParse(stockController.text) == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Por favor introduza um valor válido para o stock.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                final stockValue = int.tryParse(stockController.text) ?? 0;
-                final regularidadeStr = _selectedTipo == 'normal' ? selectedRegularidades.join(', ') : 'em caso de emergência';
-                final isCuidadora = widget.userData['tipo'] == 'cuidadora';
-                final data = {
-                  'idoso_id': widget.idosoData['id'],
-                  'nome': nomeController.text.trim(),
-                  'quantidade': doseController.text.trim(),
-                  'regularidade': regularidadeStr,
-                  'observacoes': obsController.text,
-                  'tipo': _selectedTipo,
-                  'instrucoes_sos': _selectedTipo == 'sos' ? instrucoesSosController.text : null,
-                  if (med == null) 'criado_por': widget.userData['id'],
-                };
-                try {
-                  if (med == null) {
-                    final response = await _supabase.from('medicacoes').insert(data).select().single();
-                    if (isCuidadora) {
-                      await logCuidadoraAction(
-                        acao: 'criar',
-                        entidade: 'medicamento',
-                        entidadeId: response['id'],
-                        familiaId: widget.idosoData['familia_id'],
-                        detalhes: '${data['nome']} - ${data['quantidade']}',
-                        cuidadoraId: widget.userData['id'],
-                      );
-                    }
-                  } else {
-                    await _supabase
-                        .from('medicacoes')
-                        .update(data)
-                        .eq('id', med['id']);
-                    if (isCuidadora) {
-                      await logCuidadoraAction(
-                        acao: 'editar',
-                        entidade: 'medicamento',
-                        entidadeId: med['id'],
-                        familiaId: widget.idosoData['familia_id'],
-                        detalhes: '${data['nome']} - ${data['quantidade']}',
-                        cuidadoraId: widget.userData['id'],
-                      );
-                    }
-                  }
-
-                  // Atualizar stock na tabela centralizada (upsert)
-                  final int updatedStock = stockValue;
-                  final String medNomeLower = nomeController.text.toLowerCase();
-                  final int familiaId = widget.idosoData['familia_id'];
-
-                  await _supabase.from('stock_familia').upsert({
-                    'familia_id': familiaId,
-                    'nome_medicamento': medNomeLower,
-                    'stock_atual': updatedStock,
-                  }, onConflict: 'familia_id,nome_medicamento');
-
-                  if (updatedStock < settingsService.lowStockThreshold) {
-                    notificationService.showNotification(
-                      id: (med?['id'] ?? 9999) + 9000000,
-                      title: 'Stock Baixo: ${data['nome']}',
-                      body: 'Resta apenas $updatedStock unidades.',
-                    );
-                  }
-                  if (mounted) Navigator.pop(context);
-                  _fetchMedicacoes();
-                } catch (e) {
-                  if (mounted)
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(translateSupabaseError(e))));
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
         ),
       ),
     );

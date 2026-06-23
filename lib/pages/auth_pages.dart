@@ -96,10 +96,13 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
             .maybeSingle();
 
         if (response != null && mounted) {
+          // Garantir que 'id' no userData é sempre o auth UUID
+          final userData = Map<String, dynamic>.from(response);
+          userData['id'] = session.user.id;
           Navigator.pushReplacement(
             context,
             PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) => HomePage(userData: response),
+              pageBuilder: (context, animation, secondaryAnimation) => HomePage(userData: userData),
               transitionsBuilder: (context, animation, secondaryAnimation, child) {
                 var curve = Curves.easeInOutCubic;
                 return FadeTransition(
@@ -176,7 +179,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         return;
       }
 
-      final user = userResponse;
+      // Garantir que o 'id' no userData corresponde sempre ao auth UUID,
+      // para que os campos 'criado_por' nas FK nunca falhem por mismatch.
+      final user = Map<String, dynamic>.from(userResponse);
+      user['id'] = authRes.user!.id;
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login efetuado com sucesso!')),

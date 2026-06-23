@@ -266,102 +266,109 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Este número será pré-preenchido automaticamente ao gerar uma Ficha de Emergência.',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                maxLength: 9,
-                decoration: InputDecoration(
-                  label: buildRequiredLabel('Telef. de Emergência'),
-                  prefixIcon: const Icon(Icons.phone),
-                  border: const OutlineInputBorder(),
-                  hintText: 'Ex: 912345678',
-                  counterText: '',
-                  helperText: '9 dígitos numéricos',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Este número será pré-preenchido automaticamente ao gerar uma Ficha de Emergência.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
                 ),
-              ),
-              if (_emergencyPhone.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          final prefs = await SharedPreferences.getInstance();
-                          await prefs.remove(_emergencyPhoneKey);
-                          if (mounted) {
-                            setState(() => _emergencyPhone = '');
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Número predefinido removido.'),
-                              ),
-                            );
-                          }
-                        },
-                  icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
-                  label: const Text(
-                    'Remover número guardado',
-                    style: TextStyle(color: Colors.red, fontSize: 13),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  maxLength: 9,
+                  decoration: InputDecoration(
+                    label: buildRequiredLabel('Telef. de Emergência'),
+                    prefixIcon: const Icon(Icons.phone),
+                    border: const OutlineInputBorder(),
+                    hintText: 'Ex: 912345678',
+                    counterText: '',
+                    helperText: '9 dígitos numéricos',
                   ),
                 ),
+                if (_emergencyPhone.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.remove(_emergencyPhoneKey);
+                            if (mounted) {
+                              setState(() => _emergencyPhone = '');
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Número predefinido removido.'),
+                                ),
+                              );
+                            }
+                          },
+                    icon: const Icon(Icons.delete_outline, color: Colors.red, size: 18),
+                    label: const Text(
+                      'Remover número guardado',
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: isLoading ? null : () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              final phone = phoneController.text.trim();
+                              final phoneRegex = RegExp(r'^\d{9}$');
+                              if (!phoneRegex.hasMatch(phone)) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
+                              setDialogState(() => isLoading = true);
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString(_emergencyPhoneKey, phone);
+                              if (mounted) {
+                                setState(() => _emergencyPhone = phone);
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Telefone de emergência guardado!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Guardar', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
               ],
-            ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      final phone = phoneController.text.trim();
-                      final phoneRegex = RegExp(r'^\d{9}$');
-                      if (!phoneRegex.hasMatch(phone)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('O telefone deve ter exatamente 9 dígitos numéricos.'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                      setDialogState(() => isLoading = true);
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString(_emergencyPhoneKey, phone);
-                      if (mounted) {
-                        setState(() => _emergencyPhone = phone);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Telefone de emergência guardado!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
-              child: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Guardar', style: TextStyle(color: Colors.white)),
-            ),
-          ],
         ),
       ),
     );

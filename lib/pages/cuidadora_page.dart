@@ -274,151 +274,156 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
                       .toList(),
                   onChanged: (val) => setDialogState(() => selectedFamiliaId = val),
                 ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: isSaving ? null : () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: isSaving
+                          ? null
+                          : () async {
+                              final nome = nomeController.text.trim();
+                              final email = emailController.text.trim();
+                              final password = passwordController.text.trim();
+
+                              if (nome.isEmpty || email.isEmpty || password.isEmpty || selectedFamiliaId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Por favor, preencha todos os campos.')),
+                                );
+                                return;
+                              }
+
+                              if (password.length < 6) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('A password deve ter pelo menos 6 caracteres.')),
+                                );
+                                return;
+                              }
+
+                              setDialogState(() => isSaving = true);
+
+                              try {
+                                // Check if email already exists in public.users
+                                final emailCheck = await _supabase
+                                    .from('users')
+                                    .select('id')
+                                    .eq('email', email)
+                                    .maybeSingle();
+
+                                if (emailCheck != null) {
+                                  throw Exception('Este email já está registado no sistema.');
+                                }
+
+                                // 1. Create isolated temp client ONLY for auth.signUp
+                                final tempClient = SupabaseClient(
+                                  dotenv.env['SUPABASE_URL'] ?? '',
+                                  dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+                                  authOptions: AuthClientOptions(
+                                    authFlowType: AuthFlowType.implicit,
+                                    pkceAsyncStorage: EmptyStorage(),
+                                  ),
+                                );
+
+                                // 2. Sign up caregiver in auth.users
+                                String newUserId;
+                                try {
+                                  final authRes = await tempClient.auth.signUp(
+                                    email: email,
+                                    password: password,
+                                  );
+                                  if (authRes.user == null) {
+                                    throw Exception('Falha ao registar credenciais.');
+                                  }
+                                  newUserId = authRes.user!.id;
+                                } catch (authErr) {
+                                  // If user exists in auth.users but not in public.users
+                                  // (orphan from a previous failed attempt), try to sign in
+                                  // to recover their ID
+                                  if (authErr.toString().contains('user_already_exists')) {
+                                    try {
+                                      final signInRes = await tempClient.auth.signInWithPassword(
+                                        email: email,
+                                        password: password,
+                                      );
+                                      if (signInRes.user == null) {
+                                        throw Exception(
+                                          'Este email já tem conta de autenticação mas não foi possível recuperá-la. '
+                                          'Elimine-a manualmente no painel do Supabase (Authentication > Users).',
+                                        );
+                                      }
+                                      newUserId = signInRes.user!.id;
+                                    } catch (signInErr) {
+                                      throw Exception(
+                                        'Este email já tem conta de autenticação criada anteriormente. '
+                                        'Elimine-a no painel do Supabase (Authentication > Users) e tente novamente.',
+                                      );
+                                    }
+                                  } else {
+                                    rethrow;
+                                  }
+                                }
+
+                                // 3. Use RPC (SECURITY DEFINER) to insert into users + familia_cuidadores
+                                // This runs with elevated privileges, bypassing RLS
+                                String? fotoUrl;
+                                if (fotoBytes != null) {
+                                  fotoUrl = 'data:image/jpeg;base64,${base64Encode(fotoBytes!)}';
+                                }
+                                await _supabase.rpc('register_cuidadora', params: {
+                                  'p_user_id': newUserId,
+                                  'p_nome': nome,
+                                  'p_email': email,
+                                  'p_familia_id': selectedFamiliaId,
+                                  'p_foto_url': fotoUrl,
+                                });
+
+                                if (mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Cuidador(a) registado(a) com sucesso!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                                _fetchData();
+                              } catch (e) {
+                                debugPrint('ERRO NO REGISTO: $e');
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('$e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } finally {
+                                setDialogState(() => isSaving = false);
+                              }
+                            },
+                      child: isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            )
+                          : const Text('Registar'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: isSaving ? null : () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: isSaving
-                  ? null
-                  : () async {
-                      final nome = nomeController.text.trim();
-                      final email = emailController.text.trim();
-                      final password = passwordController.text.trim();
-
-                      if (nome.isEmpty || email.isEmpty || password.isEmpty || selectedFamiliaId == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Por favor, preencha todos os campos.')),
-                        );
-                        return;
-                      }
-
-                      if (password.length < 6) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('A password deve ter pelo menos 6 caracteres.')),
-                        );
-                        return;
-                      }
-
-                      setDialogState(() => isSaving = true);
-
-                      try {
-                        // Check if email already exists in public.users
-                        final emailCheck = await _supabase
-                            .from('users')
-                            .select('id')
-                            .eq('email', email)
-                            .maybeSingle();
-
-                        if (emailCheck != null) {
-                          throw Exception('Este email já está registado no sistema.');
-                        }
-
-                        // 1. Create isolated temp client ONLY for auth.signUp
-                        final tempClient = SupabaseClient(
-                          dotenv.env['SUPABASE_URL'] ?? '',
-                          dotenv.env['SUPABASE_ANON_KEY'] ?? '',
-                          authOptions: AuthClientOptions(
-                            authFlowType: AuthFlowType.implicit,
-                            pkceAsyncStorage: EmptyStorage(),
-                          ),
-                        );
-
-                        // 2. Sign up caregiver in auth.users
-                        String newUserId;
-                        try {
-                          final authRes = await tempClient.auth.signUp(
-                            email: email,
-                            password: password,
-                          );
-                          if (authRes.user == null) {
-                            throw Exception('Falha ao registar credenciais.');
-                          }
-                          newUserId = authRes.user!.id;
-                        } catch (authErr) {
-                          // If user exists in auth.users but not in public.users
-                          // (orphan from a previous failed attempt), try to sign in
-                          // to recover their ID
-                          if (authErr.toString().contains('user_already_exists')) {
-                            try {
-                              final signInRes = await tempClient.auth.signInWithPassword(
-                                email: email,
-                                password: password,
-                              );
-                              if (signInRes.user == null) {
-                                throw Exception(
-                                  'Este email já tem conta de autenticação mas não foi possível recuperá-la. '
-                                  'Elimine-a manualmente no painel do Supabase (Authentication > Users).',
-                                );
-                              }
-                              newUserId = signInRes.user!.id;
-                            } catch (signInErr) {
-                              throw Exception(
-                                'Este email já tem conta de autenticação criada anteriormente. '
-                                'Elimine-a no painel do Supabase (Authentication > Users) e tente novamente.',
-                              );
-                            }
-                          } else {
-                            rethrow;
-                          }
-                        }
-
-                        // 3. Use RPC (SECURITY DEFINER) to insert into users + familia_cuidadores
-                        // This runs with elevated privileges, bypassing RLS
-                        String? fotoUrl;
-                        if (fotoBytes != null) {
-                          fotoUrl = 'data:image/jpeg;base64,${base64Encode(fotoBytes!)}';
-                        }
-                        await _supabase.rpc('register_cuidadora', params: {
-                          'p_user_id': newUserId,
-                          'p_nome': nome,
-                          'p_email': email,
-                          'p_familia_id': selectedFamiliaId,
-                          'p_foto_url': fotoUrl,
-                        });
-
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Cuidador(a) registado(a) com sucesso!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                        _fetchData();
-                      } catch (e) {
-                        debugPrint('ERRO NO REGISTO: $e');
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('$e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      } finally {
-                        setDialogState(() => isSaving = false);
-                      }
-                    },
-              child: isSaving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text('Registar'),
-            ),
-          ],
         ),
       ),
     );
@@ -436,9 +441,12 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
               height: 35,
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Gestão de Cuidadores/as',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            const Flexible(
+              child: Text(
+                'Gestão de Cuidadores/as',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -465,7 +473,7 @@ class _CuidadoraPageState extends State<CuidadoraPage> with SingleTickerProvider
           indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
             Tab(text: 'Cuidadores/as'),
-            Tab(text: 'Log de Atividades'),
+            Tab(text: 'Lista de Atividades'),
           ],
           labelColor: Colors.amber,
           unselectedLabelColor: Theme.of(context).brightness == Brightness.dark

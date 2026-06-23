@@ -974,7 +974,8 @@ class _AddEventoPageState extends State<AddEventoPage> {
       'tipo': _selectedTipo == 'Outro' ? _outroController.text.trim() : _selectedTipo,
       'data_inicio': startDateTime.toIso8601String(),
       'localizacao': _localController.text,
-      if (widget.event == null) 'criado_por': widget.userData['id'],
+      // Usar o auth UUID como fonte fidedigna para a FK criado_por
+      if (widget.event == null) 'criado_por': _supabase.auth.currentUser?.id ?? widget.userData['id'],
     };
 
     if (widget.event != null) {
