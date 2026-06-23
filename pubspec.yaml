@@ -53,6 +53,7 @@ dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.4
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   shared_preferences: ^2.5.4
@@ -107,3 +108,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "images/carenion_Icon-removebg-preview.png"
+  adaptive_icon_background: "#FFC107"
+  adaptive_icon_foreground: "images/carenion_Icon-removebg-preview.png"
+  min_sdk_android: 21
+  web:
+    generate: false
