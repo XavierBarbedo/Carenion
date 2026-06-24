@@ -167,12 +167,9 @@ class _MedicoesPageState extends State<MedicoesPage> {
                                   backgroundColor: Colors.amber.withOpacity(0.2),
                                   child: const Icon(Icons.family_restroom, color: Colors.amber),
                                 ),
-                          title: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Text(
-                              familia['nome'] ?? 'Sem nome',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                          title: Text(
+                            familia['nome'] ?? 'Sem nome',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           children: idosos.isEmpty
                               ? [
@@ -262,11 +259,8 @@ class _MedicoesPageState extends State<MedicoesPage> {
                     backgroundColor: Colors.amber,
                     child: Icon(Icons.person, color: Colors.white, size: 20),
                   ),
-            title: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                idoso['nome'] ?? 'Sem nome',
-              ),
+            title: Text(
+              idoso['nome'] ?? 'Sem nome',
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,

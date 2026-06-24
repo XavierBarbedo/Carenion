@@ -518,16 +518,21 @@ class _MedicamentosPageState extends State<MedicamentosPage>
     return Scaffold(
       appBar: AppBar(
         title: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Image.asset(
               'images/carenion_Icon-removebg-preview.png',
               height: 35,
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Gestão de Medicação',
-              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: const Text(
+                  'Gestão de Medicação',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber),
+                ),
+              ),
             ),
           ],
         ),
@@ -546,6 +551,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           dividerColor: Colors.transparent,
           indicator: BoxDecoration(
             borderRadius: BorderRadius.circular(25),
@@ -621,54 +628,48 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                     backgroundColor: Colors.amber.withOpacity(0.2),
                     child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
                   ),
-            title: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                famName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.amber,
-                ),
+            title: Text(
+              famName,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: Colors.amber,
               ),
             ),
             children: items.map((item) {
               return Card(
                 elevation: 1,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
-                  title: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Text(
-                      item['nome'],
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  subtitle: Column(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Text('Para: ${item['idoso_nome']}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item['nome'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            const SizedBox(height: 2),
+                            Text('Para: ${item['idoso_nome']}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            const SizedBox(height: 4),
+                            Text('Instruções: ${item['instrucoes_sos'] ?? 'Sem instruções'}'),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      Text('Instruções: ${item['instrucoes_sos'] ?? 'Sem instruções'}'),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => _marcarTomadoSos(item),
+                        child: const Text('Tomar'),
+                      ),
                     ],
-                  ),
-                  trailing: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => _marcarTomadoSos(item),
-                    child: const Text('Tomar'),
                   ),
                 ),
               );
@@ -705,11 +706,11 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       children: groupedByFamily.keys.map((famName) {
         final familyItems = groupedByFamily[famName]!;
 
-        // 2. Agrupar itens da família por data
-        Map<String, List<dynamic>> groupedByDate = {};
+        // 2. Agrupar por Idoso dentro da família
+        Map<String, List<dynamic>> groupedByIdoso = {};
         for (var item in familyItems) {
-          final key = '${item['day_label']} (${item['date_label']})';
-          groupedByDate.putIfAbsent(key, () => []).add(item);
+          final idosoName = item['idoso_nome'] ?? 'Desconhecido';
+          groupedByIdoso.putIfAbsent(idosoName, () => []).add(item);
         }
 
         return Card(
@@ -736,212 +737,195 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                     backgroundColor: Colors.amber.withOpacity(0.2),
                     child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
                   ),
-            title: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                famName,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Colors.amber,
-                ),
-              ),
+            title: Text(
+              famName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.amber),
             ),
             iconColor: Colors.amber,
             collapsedIconColor: Colors.amber,
             childrenPadding: const EdgeInsets.only(bottom: 8),
             children: [
-              ...groupedByDate.keys.map((dateKey) {
-                final items = groupedByDate[dateKey]!;
-                final isToday = items.any((i) => i['is_today'] == true);
-                final isFuture = items.any((i) => i['is_future'] == true);
+              ...groupedByIdoso.keys.map((idosoName) {
+                final idosoItems = groupedByIdoso[idosoName]!;
 
-                Color dayColor;
-                IconData dayIcon;
-                String statusLabel;
-
-                if (isToday) {
-                  dayColor = Theme.of(context).brightness == Brightness.dark
-                      ? Colors.amber[400]!
-                      : Colors.amber[800]!;
-                  dayIcon = Icons.today;
-                  statusLabel = 'Hoje';
-                } else if (isFuture) {
-                  dayColor = Theme.of(context).brightness == Brightness.dark
-                      ? Colors.blue[300]!
-                      : Colors.blue[700]!;
-                  dayIcon = Icons.upcoming;
-                  statusLabel = 'Futuro';
-                } else {
-                  dayColor = Theme.of(context).brightness == Brightness.dark
-                      ? Colors.grey[500]!
-                      : Colors.grey[600]!;
-                  dayIcon = Icons.history;
-                  statusLabel = 'Passado';
+                // 3. Agrupar por data dentro do idoso
+                Map<String, List<dynamic>> groupedByDate = {};
+                for (var item in idosoItems) {
+                  final key = '${item['day_label']} (${item['date_label']})';
+                  groupedByDate.putIfAbsent(key, () => []).add(item);
                 }
 
                 return ExpansionTile(
                   shape: const Border(),
                   collapsedShape: const Border(),
-                  initiallyExpanded: isToday,
-                  iconColor: dayColor,
-                  collapsedIconColor: dayColor,
-                  leading: Icon(
-                    dayIcon,
-                    color: dayColor,
-                    size: 22,
+                  initiallyExpanded: true,
+                  leading: const CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.amber,
+                    child: Icon(Icons.person, color: Colors.white, size: 16),
                   ),
-                  title: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          dateKey,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: dayColor,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: dayColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: dayColor.withOpacity(0.3), width: 1),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: dayColor,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  title: Text(
+                    idosoName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
-                  children: items.map((item) {
-                    final idosoNome = item['idoso_nome'] ?? 'Desconhecido';
-                    final isFuture = item['is_future'] == true;
-                    final isToday = item['is_today'] == true;
+                  subtitle: Text('${idosoItems.map((i) => i['id']).toSet().length} medicamento(s)'),
+                  iconColor: Colors.amber,
+                  collapsedIconColor: Colors.amber,
+                  children: [
+                    ...groupedByDate.keys.map((dateKey) {
+                      final items = groupedByDate[dateKey]!;
+                      final isToday = items.any((i) => i['is_today'] == true);
+                      final isFuture = items.any((i) => i['is_future'] == true);
 
-                    return Card(
-                      elevation: 1,
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      color: isFuture
-                          ? (Theme.of(context).brightness == Brightness.dark
-                              ? Colors.blueGrey.withOpacity(0.05)
-                              : Colors.blue[50]?.withOpacity(0.15))
-                          : (!isToday
-                              ? (Theme.of(context).brightness == Brightness.dark
-                                  ? Colors.white10.withOpacity(0.02)
-                                  : Colors.grey[100])
-                              : null),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      Color dayColor;
+                      IconData dayIcon;
+                      String statusLabel;
+
+                      if (isToday) {
+                        dayColor = Theme.of(context).brightness == Brightness.dark
+                            ? Colors.amber[400]!
+                            : Colors.amber[800]!;
+                        dayIcon = Icons.today;
+                        statusLabel = 'Hoje';
+                      } else if (isFuture) {
+                        dayColor = Theme.of(context).brightness == Brightness.dark
+                            ? Colors.blue[300]!
+                            : Colors.blue[700]!;
+                        dayIcon = Icons.upcoming;
+                        statusLabel = 'Futuro';
+                      } else {
+                        dayColor = Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[500]!
+                            : Colors.grey[600]!;
+                        dayIcon = Icons.history;
+                        statusLabel = 'Passado';
+                      }
+
+                      return ExpansionTile(
+                        shape: const Border(),
+                        collapsedShape: const Border(),
+                        initiallyExpanded: isToday,
+                        iconColor: dayColor,
+                        collapsedIconColor: dayColor,
+                        leading: Icon(dayIcon, color: dayColor, size: 22),
+                        title: Row(
                           children: [
-                            Icon(
-                              Icons.medical_services,
-                              color: item['tomada']
-                                  ? Colors.green
-                                  : (isFuture
-                                      ? Colors.grey
-                                      : (!isToday
-                                          ? Colors.grey[400]
-                                          : Colors.amber)),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['nome'],
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text('Para: $idosoNome', style: const TextStyle(fontWeight: FontWeight.w500)),
-                                  const SizedBox(height: 2),
-                                  Text('Horário: ${item['regularidade']}'),
-                                  const SizedBox(height: 2),
-                                  Text('Dose: ${item['quantidade']}'),
-                                ],
+                            Flexible(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  dateKey,
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: dayColor),
+                                ),
                               ),
                             ),
-                            Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (widget.userData['tipo'] != 'cuidadora' || item['criado_por'] == widget.userData['id'])
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.settings,
-                                      color: Colors.blueGrey,
-                                      size: 20,
-                                    ),
-                                    onPressed: () async {
-                                      final idosoRes = await _supabase
-                                          .from('idosos')
-                                          .select()
-                                          .eq('id', item['idoso_id'])
-                                          .single();
-                                      if (mounted) {
-                                        await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) => ManageMedicacoesPage(
-                                              idosoData: idosoRes,
-                                              userData: widget.userData,
-                                              initialMedToEdit: Map<String, dynamic>.from(item as Map),
-                                            ),
-                                          ),
-                                        );
-                                        _fetchData();
-                                      }
-                                    },
-                                  ),
-                                if (item['tomada'])
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                      size: 30,
-                                    ),
-                                    onPressed: () => _marcarTomado(item),
-                                  )
-                                else if (isFuture)
-                                  const Icon(
-                                    Icons.schedule,
-                                    color: Colors.grey,
-                                    size: 30,
-                                  )
-                                else
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.circle_outlined,
-                                      color: Colors.grey,
-                                      size: 30,
-                                    ),
-                                    onPressed: () => _marcarTomado(item),
-                                  ),
-                              ],
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: dayColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: dayColor.withOpacity(0.3), width: 1),
+                              ),
+                              child: Text(
+                                statusLabel,
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: dayColor),
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  }).toList(),
+                        children: items.map((item) {
+                          final isFutureItem = item['is_future'] == true;
+                          final isTodayItem = item['is_today'] == true;
+
+                          return Card(
+                            elevation: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            color: isFutureItem
+                                ? (Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.blueGrey.withOpacity(0.05)
+                                    : Colors.blue[50]?.withOpacity(0.15))
+                                : (!isTodayItem
+                                    ? (Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white10.withOpacity(0.02)
+                                        : Colors.grey[100])
+                                    : null),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.medical_services,
+                                    color: item['tomada']
+                                        ? Colors.green
+                                        : (isFutureItem ? Colors.grey : (!isTodayItem ? Colors.grey[400] : Colors.amber)),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(item['nome'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                        const SizedBox(height: 2),
+                                        Text('Horário: ${item['regularidade']}'),
+                                        const SizedBox(height: 2),
+                                        Text('Dose: ${item['quantidade']}'),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      if (widget.userData['tipo'] != 'cuidadora' || item['criado_por'] == widget.userData['id'])
+                                        IconButton(
+                                          icon: const Icon(Icons.settings, color: Colors.blueGrey, size: 20),
+                                          onPressed: () async {
+                                            final idosoRes = await _supabase
+                                                .from('idosos')
+                                                .select()
+                                                .eq('id', item['idoso_id'])
+                                                .single();
+                                            if (mounted) {
+                                              await Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => ManageMedicacoesPage(
+                                                    idosoData: idosoRes,
+                                                    userData: widget.userData,
+                                                    initialMedToEdit: Map<String, dynamic>.from(item as Map),
+                                                  ),
+                                                ),
+                                              );
+                                              _fetchData();
+                                            }
+                                          },
+                                        ),
+                                      if (item['tomada'])
+                                        IconButton(
+                                          icon: const Icon(Icons.check_circle, color: Colors.green, size: 30),
+                                          onPressed: () => _marcarTomado(item),
+                                        )
+                                      else if (isFutureItem)
+                                        const Icon(Icons.schedule, color: Colors.grey, size: 30)
+                                      else
+                                        IconButton(
+                                          icon: const Icon(Icons.circle_outlined, color: Colors.grey, size: 30),
+                                          onPressed: () => _marcarTomado(item),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    }).toList(),
+                    const SizedBox(height: 8),
+                  ],
                 );
               }).toList(),
               const SizedBox(height: 8),
@@ -951,6 +935,8 @@ class _MedicamentosPageState extends State<MedicamentosPage>
       }).toList(),
     );
   }
+
+
 
   Widget _buildStockFamilia() {
     if (_isLoading) {
@@ -1003,12 +989,9 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                     backgroundColor: Colors.amber.withOpacity(0.2),
                     child: const Icon(Icons.family_restroom, color: Colors.amber, size: 18),
                   ),
-            title: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Text(
-                familia['nome'] ?? 'Sem nome',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
+            title: Text(
+              familia['nome'] ?? 'Sem nome',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text('${idosos.length} idosos associados'),
             children: idosos.isEmpty
@@ -1029,10 +1012,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                     return ExpansionTile(
                       shape: const Border(),
                       collapsedShape: const Border(),
-                      title: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Text(idoso['nome'] ?? 'Sem nome'),
-                      ),
+                      title: Text(idoso['nome'] ?? 'Sem nome'),
                       subtitle: Text('${meds.length} medicamentos'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1074,10 +1054,7 @@ class _MedicamentosPageState extends State<MedicamentosPage>
                           : meds
                                 .map(
                                   (m) => ListTile(
-                                    title: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: Text(m['nome']),
-                                    ),
+                                    title: Text(m['nome']),
                                     subtitle: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [

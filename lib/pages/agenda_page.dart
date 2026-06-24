@@ -462,14 +462,11 @@ class _AgendaPageState extends State<AgendaPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(
-                    event['titulo'] ?? 'Sem Título',
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Text(
+                  event['titulo'] ?? 'Sem Título',
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -555,9 +552,9 @@ class _AgendaPageState extends State<AgendaPage> {
                   title,
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Text(value, style: const TextStyle(fontSize: 16)),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 16),
                 ),
               ],
             ),
@@ -770,6 +767,31 @@ class _AddEventoPageState extends State<AddEventoPage> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.amber),
       ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _isLoading ? null : _saveEvento,
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : Text(
+                      widget.event != null ? 'Guardar Alterações' : 'Guardar Evento',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+            ),
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(
@@ -787,6 +809,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
               const SizedBox(height: 20),
 
               DropdownButtonFormField<int>(
+                isExpanded: true,
                 decoration: InputDecoration(
                   label: buildRequiredLabel('Família'),
                   prefixIcon: const Icon(Icons.family_restroom),
@@ -796,7 +819,10 @@ class _AddEventoPageState extends State<AddEventoPage> {
                     .map(
                       (f) => DropdownMenuItem<int>(
                         value: f['id'],
-                        child: Text(f['nome']),
+                        child: Text(
+                          f['nome'],
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     )
                     .toList(),
@@ -810,31 +836,118 @@ class _AddEventoPageState extends State<AddEventoPage> {
               ),
               const SizedBox(height: 16),
 
-              DropdownButtonFormField<int>(
-                decoration: InputDecoration(
-                  label: buildRequiredLabel('Idoso/a'),
-                  prefixIcon: const Icon(Icons.person),
-                ),
-                value: _selectedIdosoId,
-                items: _idosos
-                    .map(
-                      (i) => DropdownMenuItem<int>(
-                        value: i['id'],
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            i['foto_url'] != null && i['foto_url'].toString().isNotEmpty
-                                ? CircleAvatar(radius: 12, backgroundImage: getAvatarProvider(i['foto_url']))
-                                : const CircleAvatar(radius: 12, child: Icon(Icons.person, size: 12)),
-                            const SizedBox(width: 8),
-                            Text(i['nome']),
-                          ],
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _selectedIdosoId = val),
+              FormField<int>(
+                key: ValueKey(_selectedIdosoId),
+                initialValue: _selectedIdosoId,
                 validator: (v) => v == null ? 'Obrigatório' : null,
+                builder: (FormFieldState<int> state) {
+                  dynamic selectedIdoso;
+                  try {
+                    selectedIdoso = _idosos.firstWhere((i) => i['id'] == state.value);
+                  } catch (_) {
+                    selectedIdoso = null;
+                  }
+
+                  return InkWell(
+                    onTap: () async {
+                      if (_selectedFamiliaId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Por favor, selecione primeiro uma família.')),
+                        );
+                        return;
+                      }
+
+                      final selected = await showDialog<int>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Selecionar Idoso/a'),
+                          content: SizedBox(
+                            width: double.maxFinite,
+                            child: _idosos.isEmpty
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                                    child: Text(
+                                      'Nenhum/a idoso/a encontrado/a.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                    ),
+                                  )
+                                : ListView(
+                                    shrinkWrap: true,
+                                    children: _idosos.map((i) {
+                                      final isSelected = i['id'] == state.value;
+                                      return ListTile(
+                                        leading: i['foto_url'] != null && i['foto_url'].toString().isNotEmpty
+                                            ? CircleAvatar(
+                                                backgroundImage: getAvatarProvider(i['foto_url']),
+                                              )
+                                            : CircleAvatar(
+                                                backgroundColor: Colors.amber.withOpacity(0.2),
+                                                child: const Icon(Icons.person, color: Colors.amber),
+                                              ),
+                                        title: Text(
+                                          i['nome'],
+                                          style: TextStyle(
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            color: isSelected ? Colors.amber : null,
+                                          ),
+                                        ),
+                                        trailing: isSelected
+                                            ? const Icon(Icons.check_circle, color: Colors.amber)
+                                            : null,
+                                        onTap: () => Navigator.pop(context, i['id']),
+                                      );
+                                    }).toList(),
+                                  ),
+                          ),
+                        ),
+                      );
+
+                      if (selected != null) {
+                        state.didChange(selected);
+                        setState(() => _selectedIdosoId = selected);
+                      }
+                    },
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        label: buildRequiredLabel('Idoso/a'),
+                        prefixIcon: const Icon(Icons.person),
+                        errorText: state.errorText,
+                        suffixIcon: const Icon(Icons.arrow_drop_down),
+                      ),
+                      isEmpty: selectedIdoso == null,
+                      child: selectedIdoso == null
+                          ? null
+                          : Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  selectedIdoso['foto_url'] != null && selectedIdoso['foto_url'].toString().isNotEmpty
+                                      ? CircleAvatar(
+                                          radius: 12,
+                                          backgroundImage: getAvatarProvider(selectedIdoso['foto_url']),
+                                        )
+                                      : CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: Colors.amber.withOpacity(0.2),
+                                          child: const Icon(Icons.person, size: 12, color: Colors.amber),
+                                        ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      selectedIdoso['nome'],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
@@ -928,25 +1041,7 @@ class _AddEventoPageState extends State<AddEventoPage> {
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 30),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                  onPressed: _isLoading ? null : _saveEvento,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Guardar Evento',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                ),
-              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
